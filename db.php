@@ -75,7 +75,12 @@ function getMigrations() {
 			"CREATE INDEX transactions_id_IDX ON transactions (id);",
 			
 			"ALTER TABLE transactions MODIFY COLUMN id int(11) NOT NULL AUTO_INCREMENT;
-			ALTER TABLE transactions ADD CONSTRAINT transactions_PK PRIMARY KEY (id);"
+			ALTER TABLE transactions ADD CONSTRAINT transactions_PK PRIMARY KEY (id);",
+			
+			"ALTER TABLE crackshell.transactions ADD categoryId INT NULL;
+			ALTER TABLE crackshell.transactions ADD CONSTRAINT transactions_categories_FK FOREIGN KEY (categoryId) REFERENCES crackshell.categories(id) ON DELETE RESTRICT ON UPDATE RESTRICT;"
+			
+			
 		]
 	];
 	return $migrations;

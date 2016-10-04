@@ -1,7 +1,8 @@
 <?php
 require_once './settings.php';
 if (php_sapi_name() === 'cli') {
-	$_GET=['func'=>'getInvestments','numHoldings'=>4,'factorSettings'=>'{"weightScoreDropRate":280}'];
+	//$_GET=['func'=>'getInvestments','numHoldings'=>4,'factorSettings'=>'{"weightScoreDropRate":280}'];
+	$_POST=['func'=>'editTransaction','id'=>'8','changes'=>'{"category":"1","specification":"APOTEKET L RKAN1"}'];
 } else {
 	set_time_limit(120);
 }
@@ -41,4 +42,10 @@ function controller_get_getCategories() {
 function controller_post_deleteCategory($vars) {
 	$categoryId=$vars['id'];
 	(new Crackshell)->deleteCategory($categoryId);
+}
+
+function controller_post_editTransaction($vars) {
+	$transactionId=$vars['id'];
+	$changes=json_decode($vars['changes']);
+	(new Crackshell)->editTransaction($transactionId,$changes);
 }

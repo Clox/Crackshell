@@ -88,7 +88,7 @@ function gotTransactions(rows) {
 		var row={};
 		row.id=rowData.id;
 		row.date=rowData.date;
-		row.category=rowData.category;
+		row.categoryId=rowData.categoryId;
 		row.specification=rowData.specification;
 		row.amount=rowData.amount;
 		row.country=rowData.country;
@@ -109,9 +109,9 @@ function setupRowsGrid() {
 		editing: true,
         deleteConfirm: "Do you really want to delete the client?",
         fields: [
-            { name:"id",title: "ID", type: "number",width:10},
+            { name:"id",title: "ID", type: "number",width:10,readOnly:true},
 			{ name:"date",title: "Datum", type: "text",width:35},
-			{ name:"category",title: "Kategori", type: "select",items:categoriesClone,textField:'name'
+			{ name:"categoryId",title: "Kategori", type: "select",items:categoriesClone,textField:'name'
 				,valueField:'id',width:30,valueType:"string"},
             { name: "specification", title:"Specifikation", type: "text"},
 			{ name: "amount", title:"Belopp", type: "number",width:25,editValue:jsGridDecimalEdit},
@@ -145,10 +145,13 @@ function transactionEdit(event) {
 		}
 	}
 	if (change) {
-		changes.id=newItem.id;
+		editTransaction(newItem.id,changes);
 	}
-	console.log(changes);
-	console.log(event);
+}
+
+function editTransaction(id,changes) {
+	changes=JSON.stringify(changes);
+	$.post("controller.php", {func:"editTransaction",id:id,changes:changes}, addedNewTransactions,"json");
 }
 
 function timestampToString(timestamp,time) {

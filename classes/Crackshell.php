@@ -20,8 +20,8 @@ class Crackshell {
 	public function getTransactions() {
 		global $db;
 		$transactions=$db->query(
-				"SELECT id,date,amount,specification,country,UNIX_TIMESTAMP(addedAt)addedAt FROM transactions")
-				->fetchAll(PDO::FETCH_ASSOC);
+			"SELECT id,date,amount,specification,country,categoryId,UNIX_TIMESTAMP(addedAt)addedAt FROM transactions")
+			->fetchAll(PDO::FETCH_ASSOC);
 		return $transactions;
 	}
 	
@@ -55,5 +55,16 @@ class Crackshell {
 	public function getCategories() {
 		global $db;
 		return $db->query("SELECT id,name,parentId FROM categories")->fetchAll(PDO::FETCH_NAMED);
+	}
+	
+	public function editTransaction($id,$changes) {
+		global $db;
+		foreach ($changes as $key=>$val) {
+			$sets[]="$key=?";
+			$vals[]=$val;
+		}
+		$sets_imploded=implode(',',$sets);
+		$prep=$db->prepare("UPDATE transactions SET $sets_imploded WHERE id=$id");
+		$prep->execute($vals);
 	}
 }
