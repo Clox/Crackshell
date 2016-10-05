@@ -16,6 +16,9 @@ function init() {
 	$.when(getCategories()).then(getTransactions());
 	setupAddPage();
 	setupCategoriesPage();
+	
+	$("#mainTabs").tabs("option","active",1);
+//	parseRows();
 }
 
 function setupMainTabs() {
@@ -110,7 +113,7 @@ function setupRowsGrid() {
 		editing: true,
         deleteConfirm: "Do you really want to delete the client?",
         fields: [
-            { name:"id",title: "ID", type: "number",width:10,readOnly:true},
+            { name:"id",title: "ID", type: "number",width:60,readOnly:true},
 			{ name:"date",title: "Datum", type: "text",width:35},
 			{ name:"categoryId",title: "Kategori", type: "select",items:categoriesClone,textField:'name'
 				,valueField:'id',width:30,valueType:"string"},
@@ -196,6 +199,7 @@ function parseRows() {
 		gridRow.specification=cols[1];
 		gridRow.country=cols[3];
 		gridRow.amount=parseFloat(cols[4].replace(",","."));
+		gridRow.categoryId="hoho";
 		newGridRows.push(gridRow);
 	}
 	setupNewRowsGrid(newGridRows);
@@ -228,11 +232,11 @@ function setupNewRowsGrid(data) {
 		data:dataCopy,
         deleteConfirm: "Do you really want to delete the client?",
         fields: [
-            { name:"date",title: "Datum", type: "input",width:35},
-			{ name:"country",title: "Land", type: "input",width:50},
+            { name:"date",title: "Datum", type: "input",width:20},
+			{ name:"country",title: "Land", type: "input",width:40},
             { name: "specification", title:"Specifikation", type: "input"},
-			{ name: "amount", title:"Belopp", type: "input",width:25},
-			{ name: "categoryId", title:"Kategori", type: "text",width:40}
+			{ name: "amount", title:"Belopp", type: "input",width:15},
+			{ name: "categoryId", title:"Kategori", type: "chosenRender",bajs:"haha",width:40}
         ]
     });
 }
@@ -281,6 +285,7 @@ MyDateField.prototype = new jsGrid.Field({
 function setupJsGridCustomFields() {
 	setupJsGridInputField();
 	setupJsGridDateField();
+	setupJsGridChosenRenderField();
 }
 function setupJsGridInputField() {
 	jsGrid.fields.input = function(config) {
@@ -290,7 +295,7 @@ function setupJsGridInputField() {
 		css: "input-field",            // redefine general property 'css'
 		cellRenderer:function(value,item) {
 			var td=document.createElement("TD");
-			var input=document.createElement("INPUT");
+			var input=document.createElement("input");
 			td.appendChild(input);
 			input.value=value;
 			$(input).change(inputFieldOnChange);
@@ -339,6 +344,27 @@ function setupJsGridDateField() {
 
 		editValue: function() {
 			return this._editPicker.datepicker("getDate").toISOString();
+		}
+	});
+}
+function setupJsGridChosenRenderField() {
+	jsGrid.fields.chosenRender = function(config) {
+		jsGrid.Field.call(this, config);
+	};
+	jsGrid.fields.chosenRender.prototype = new jsGrid.Field({
+		//css: "input-field",            // redefine general property 'css'
+		cellRenderer:function(value,item) {
+			var td=document.createElement("TD");
+			var select=document.createElement("SELECT");
+			td.appendChild(select);
+			return td;
+			
+			function inputFieldOnChange(event) {
+				for (var grid,elem=$(input.parentElement); !(grid=elem.data("JSGrid")); elem=elem.parent());
+				var fieldName=grid.fields[td.cellIndex].name;
+				var dataItem=grid.data[td.parentElement.rowIndex];
+				dataItem[fieldName]=input.value;
+			}
 		}
 	});
 }

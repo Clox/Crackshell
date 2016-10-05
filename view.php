@@ -13,6 +13,10 @@
 	<link rel="stylesheet" type="text/css" href="js/libs/jquery-ui-1.11.4.custom/jquery-ui.min.css"/>
 	<link rel="stylesheet" type="text/css" href="js/libs/jquery-ui-1.11.4.custom/jquery-ui.structure.min.css"/>
 	
+	<!--chosen-->
+	<script src="js/libs/chosen/chosen.jquery.js"></script>
+	<link rel="stylesheet" href="js/libs/chosen/chosen.css"/>
+	
 	<!--crackshell-->
 	<script src="js/crackshell.js"></script>
 	<link rel="stylesheet" type="text/css" href="css/crackshell.css"/>
