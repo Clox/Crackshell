@@ -78,9 +78,17 @@ function getMigrations() {
 			ALTER TABLE transactions ADD CONSTRAINT transactions_PK PRIMARY KEY (id);",
 			
 			"ALTER TABLE crackshell.transactions ADD categoryId INT NULL;
-			ALTER TABLE crackshell.transactions ADD CONSTRAINT transactions_categories_FK FOREIGN KEY (categoryId) REFERENCES crackshell.categories(id) ON DELETE RESTRICT ON UPDATE RESTRICT;"
+			ALTER TABLE crackshell.transactions ADD CONSTRAINT transactions_categories_FK FOREIGN KEY (categoryId) REFERENCES crackshell.categories(id) ON DELETE RESTRICT ON UPDATE RESTRICT;",
 			
-			
+			"CREATE TABLE crackshell.Links (
+				id INT NULL AUTO_INCREMENT,
+				regex VARCHAR(100) NULL,
+				orderNumber INT NULL,
+				CONSTRAINT Links_PK PRIMARY KEY (id)
+			)
+			ENGINE=InnoDB
+			DEFAULT CHARSET=utf8mb4
+			COLLATE=utf8mb4_general_ci;"
 		]
 	];
 	return $migrations;

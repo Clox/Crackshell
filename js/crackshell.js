@@ -11,6 +11,7 @@ var transactions;
 $(init);
 
 function init() {
+	setupJsGridCustomFields();
 	setupMainTabs();
 	$.when(getCategories()).then(getTransactions());
 	setupAddPage();
@@ -115,7 +116,7 @@ function setupRowsGrid() {
 				,valueField:'id',width:30,valueType:"string"},
             { name: "specification", title:"Specifikation", type: "text"},
 			{ name: "amount", title:"Belopp", type: "number",width:25,editValue:jsGridDecimalEdit},
-			{ name: "addedAt", title:"Tillagd", type: "text",width:35},
+			{ name: "addedAt", title:"Tillagd", type: "text",width:45},
 			{
                 type: "control",
                 modeSwitchButton: false,
@@ -227,10 +228,11 @@ function setupNewRowsGrid(data) {
 		data:dataCopy,
         deleteConfirm: "Do you really want to delete the client?",
         fields: [
-            { name:"date",title: "Datum", type: "text"},
-			{ name:"country",title: "Land", type: "text"},
-            { name: "specification", title:"Specifikation", type: "text"},
-			{ name: "amount", title:"Belopp", type: "number"}
+            { name:"date",title: "Datum", type: "input",width:35},
+			{ name:"country",title: "Land", type: "input",width:50},
+            { name: "specification", title:"Specifikation", type: "input"},
+			{ name: "amount", title:"Belopp", type: "input",width:25},
+			{ name: "categoryId", title:"Kategori", type: "text",width:40}
         ]
     });
 }
@@ -238,4 +240,105 @@ function pad(n, width, z) {
   z = z || '0';
   n = n + '';
   return n.length >= width ? n : new Array(width - n.length + 1).join(z) + n;
+}
+
+var MyDateField = function(config) {
+    jsGrid.Field.call(this, config);
+};
+ 
+MyDateField.prototype = new jsGrid.Field({
+ 
+    css: "date-field",            // redefine general property 'css'
+    align: "center",              // redefine general property 'align'
+ 
+    myCustomProperty: "foo",      // custom property
+ 
+    sorter: function(date1, date2) {
+        return new Date(date1) - new Date(date2);
+    },
+ 
+    itemTemplate: function(value) {
+        return new Date(value).toDateString();
+    },
+ 
+    insertTemplate: function(value) {
+        return this._insertPicker = $("<input>").datepicker({ defaultDate: new Date() });
+    },
+ 
+    editTemplate: function(value) {
+        return this._editPicker = $("<input>").datepicker().datepicker("setDate", new Date(value));
+    },
+ 
+    insertValue: function() {
+        return this._insertPicker.datepicker("getDate").toISOString();
+    },
+ 
+    editValue: function() {
+        return this._editPicker.datepicker("getDate").toISOString();
+    }
+});
+
+function setupJsGridCustomFields() {
+	setupJsGridInputField();
+	setupJsGridDateField();
+}
+function setupJsGridInputField() {
+	jsGrid.fields.input = function(config) {
+		jsGrid.Field.call(this, config);
+	};
+	jsGrid.fields.input.prototype = new jsGrid.Field({
+		css: "input-field",            // redefine general property 'css'
+		cellRenderer:function(value,item) {
+			var td=document.createElement("TD");
+			var input=document.createElement("INPUT");
+			td.appendChild(input);
+			input.value=value;
+			$(input).change(inputFieldOnChange);
+			return td;
+			
+			function inputFieldOnChange(event) {
+				for (var grid,elem=$(input.parentElement); !(grid=elem.data("JSGrid")); elem=elem.parent());
+				var fieldName=grid.fields[td.cellIndex].name;
+				var dataItem=grid.data[td.parentElement.rowIndex];
+				dataItem[fieldName]=input.value;
+			}
+		}
+	});
+}
+function setupJsGridDateField() {
+	jsGrid.fields.date = function(config) {
+		jsGrid.Field.call(this, config);
+	};
+
+	jsGrid.fields.date.prototype = new jsGrid.Field({
+
+		css: "date-field",            // redefine general property 'css'
+		align: "center",              // redefine general property 'align'
+
+		myCustomProperty: "foo",      // custom property
+
+		sorter: function(date1, date2) {
+			return new Date(date1) - new Date(date2);
+		},
+
+		itemTemplate: function(value) {
+			return new Date(value).toDateString();
+		},
+
+		insertTemplate: function(value) {
+			return this._insertPicker = $("<input>").datepicker({ defaultDate: new Date() });
+		},
+
+		editTemplate: function(value) {
+			return this._editPicker = $("<input>").datepicker().datepicker("setDate", new Date(value));
+		},
+
+		insertValue: function() {
+			return this._insertPicker.datepicker("getDate").toISOString();
+		},
+
+		editValue: function() {
+			return this._editPicker.datepicker("getDate").toISOString();
+		}
+	});
 }

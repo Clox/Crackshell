@@ -24,6 +24,7 @@
 			<li><a href="#mainTabs-1">Transaktioner</a></li>
 			<li><a href="#mainTabs-2">Lägg till</a></li>
 			<li><a href="#mainTabs-3">Kategorier</a></li>
+			<li><a href="#mainTabs-4">Länka</a></li>
 		</ul>
 		<div id="mainTabs-1">
 			<div id="viewGrid"></div>
@@ -37,6 +38,9 @@
 		</div>
 		<div id="mainTabs-3">
 			<div id="categoriesGrid"></div>
+		</div>
+		<div id="mainTabs-4">
+			
 		</div>
 	</div>
 </body>
