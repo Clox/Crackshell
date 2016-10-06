@@ -21,4 +21,8 @@ and open the template in the editor.
 	&.input-field>input {
 		width:100%;
 	}
+	&.chosenRenderField>select {
+		visibility: hidden;//This is so that the normal SELECT element doesn't show before $().chosen kicks in
+		width:100%;
+	}
 }

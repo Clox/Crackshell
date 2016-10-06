@@ -17,4 +17,8 @@ and open the template in the editor.
 .jsgrid-cell.input-field > input {
   width: 100%;
 }
+.jsgrid-cell.chosenRenderField > select {
+  visibility: hidden;
+  width: 100%;
+}
 /*# sourceMappingURL=crackshell.css.map */

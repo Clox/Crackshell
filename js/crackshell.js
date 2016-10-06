@@ -16,7 +16,7 @@ function init() {
 	setupMainTabs();
 	$.when(getCategories(),getTransactions()).done(dataLoaded);
 	setupAddPage();
-//	parseRows();
+	parseRows();
 }
 
 function dataLoaded() {
@@ -28,7 +28,7 @@ function setupMainTabs() {
 	$("#mainTabs").tabs({
 		activate: mainTabActivate,
 		disabled:true,
-		active:0
+		active:1
 	});
 }
 
@@ -238,6 +238,7 @@ function setupNewRowsGrid(data) {
 	for (var i=0; i<numRows; ++i) {
 		dataCopy[i].amount=data[i].amount.toFixed(2);
 	}
+	var options=[{text:"test"},{text:"foo"},{text:"bar"}];
 	$("#newRowsGrid").jsGrid({
         width: "100%",
 		height:"calc(100% - 285px)",
@@ -245,11 +246,11 @@ function setupNewRowsGrid(data) {
 		data:dataCopy,
         deleteConfirm: "Do you really want to delete the client?",
         fields: [
-            { name:"date",title: "Datum", type: "input",width:20},
-			{ name:"country",title: "Land", type: "input",width:40},
-            { name: "specification", title:"Specifikation", type: "input"},
-			{ name: "amount", title:"Belopp", type: "input",width:15},
-			{ name: "categoryId", title:"Kategori", type: "chosenRender",bajs:"haha",width:40}
+            { name:"date",title: "Datum", type: "inputRender",width:20},
+			{ name:"country",title: "Land", type: "inputRender",width:40},
+            { name: "specification", title:"Specifikation", type: "inputRender"},
+			{ name: "amount", title:"Belopp", type: "inputRender",inputType:"number",width:15},
+			{ name: "categoryId", title:"Kategori", type: "chosenRender",options:options,width:40}
         ]
     });
 }
@@ -301,21 +302,26 @@ function setupJsGridCustomFields() {
 	setupJsGridChosenRenderField();
 }
 function setupJsGridInputField() {
-	jsGrid.fields.input = function(config) {
+	jsGrid.fields.inputRender = function(config) {
 		jsGrid.Field.call(this, config);
 	};
-	jsGrid.fields.input.prototype = new jsGrid.Field({
+	jsGrid.fields.inputRender.prototype = new jsGrid.Field({
 		css: "input-field",            // redefine general property 'css'
+		sorter: function(val1,val2) {
+			if (this.inputType=="number")
+				return val1-val2;
+			return jsGrid.sortStrategies.string(val1,val2);
+		},
 		cellRenderer:function(value,item) {
 			var td=document.createElement("TD");
 			var input=document.createElement("input");
 			td.appendChild(input);
 			input.value=value;
 			$(input).change(inputFieldOnChange);
+			var grid=this._grid;
 			return td;
 			
 			function inputFieldOnChange(event) {
-				for (var grid,elem=$(input.parentElement); !(grid=elem.data("JSGrid")); elem=elem.parent());
 				var fieldName=grid.fields[td.cellIndex].name;
 				var dataItem=grid.data[td.parentElement.rowIndex];
 				dataItem[fieldName]=input.value;
@@ -366,10 +372,19 @@ function setupJsGridChosenRenderField() {
 	};
 	jsGrid.fields.chosenRender.prototype = new jsGrid.Field({
 		//css: "input-field",            // redefine general property 'css'
+		css:"chosenRenderField",
 		cellRenderer:function(value,item) {
 			var td=document.createElement("TD");
 			var select=document.createElement("SELECT");
 			td.appendChild(select);
+			var numSelectOptions=this.options.length;
+			for (var i=0; i<numSelectOptions; ++i) {
+				var option=document.createElement("OPTION");
+				var optionData=this.options[i];
+				option.text=optionData.text;
+				select.add(option);
+			}
+			setTimeout(function(){$(select).chosen();});//wont be correctly "chosenized" before having been added to DOM
 			return td;
 			
 			function inputFieldOnChange(event) {
