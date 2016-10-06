@@ -9,14 +9,15 @@ var newGridRows=[];
 var categories;
 var transactions;
 var tabLoads={0:setupTransactionPage,2:setupCategoriesPage};
+var newTransactionsGridFields;
+var updateCategoriesOnRefresh;
 $(init);
 
 function init() {
 	setupJsGridCustomFields();
 	setupMainTabs();
-	$.when(getCategories(),getTransactions()).done(dataLoaded);
+	$.when(getCategories(),getTransactions()).done(dataLoaded,parseRows);
 	setupAddPage();
-	parseRows();
 }
 
 function dataLoaded() {
@@ -215,7 +216,7 @@ function parseRows() {
 		gridRow.categoryId="hoho";
 		newGridRows.push(gridRow);
 	}
-	setupNewRowsGrid(newGridRows);
+	setupNewRowsGrid();
 }
 
 function parseDate(string) {
@@ -232,26 +233,21 @@ function parseDate(string) {
 	return dateString;
 }
 
-function setupNewRowsGrid(data) {
-	var dataCopy = JSON.parse(JSON.stringify(data));
-	var numRows=data.length;
-	for (var i=0; i<numRows; ++i) {
-		dataCopy[i].amount=data[i].amount.toFixed(2);
-	}
-	var options=[{text:"test"},{text:"foo"},{text:"bar"}];
-	$("#newRowsGrid").jsGrid({
-        width: "100%",
-		height:"calc(100% - 285px)",
-        sorting: true,
-		data:dataCopy,
-        deleteConfirm: "Do you really want to delete the client?",
-        fields: [
+function setupNewRowsGrid() {
+	newTransactionsGridFields=[
             { name:"date",title: "Datum", type: "inputRender",width:20},
 			{ name:"country",title: "Land", type: "inputRender",width:40},
             { name: "specification", title:"Specifikation", type: "inputRender"},
 			{ name: "amount", title:"Belopp", type: "inputRender",inputType:"number",width:15},
-			{ name: "categoryId", title:"Kategori", type: "chosenRender",options:options,width:40}
-        ]
+			{ name: "categoryId", title:"Kategori", type: "chosenRender",options:categories,width:40}
+        ];
+	$("#newRowsGrid").jsGrid({
+        width: "100%",
+		height:"calc(100% - 285px)",
+        sorting: true,
+		data:newGridRows,
+        deleteConfirm: "Do you really want to delete the client?",
+        fields: newTransactionsGridFields,
     });
 }
 function pad(n, width, z) {
@@ -319,6 +315,7 @@ function setupJsGridInputField() {
 			input.value=value;
 			$(input).change(inputFieldOnChange);
 			var grid=this._grid;
+			ggrid=grid;
 			return td;
 			
 			function inputFieldOnChange(event) {
@@ -366,6 +363,13 @@ function setupJsGridDateField() {
 		}
 	});
 }
+
+/**Puts a select element in the direct view of the cell, so it can be changed instantly. 
+ * It is not a plain select but a "js chosen" element. The source of it is also changed a bit in order ot make it
+ * possibly to supply a function instead of only text for no_results_text. This makes it possible to introduce the
+ * create-button when an item isn't found.
+ * @returns {undefined}
+ */
 function setupJsGridChosenRenderField() {
 	jsGrid.fields.chosenRender = function(config) {
 		jsGrid.Field.call(this, config);
@@ -374,6 +378,8 @@ function setupJsGridChosenRenderField() {
 		//css: "input-field",            // redefine general property 'css'
 		css:"chosenRenderField",
 		cellRenderer:function(value,item) {
+			var grid=this._grid;
+			var createOptionFunc=this.createOptionFunc;
 			var td=document.createElement("TD");
 			var select=document.createElement("SELECT");
 			td.appendChild(select);
@@ -381,17 +387,40 @@ function setupJsGridChosenRenderField() {
 			for (var i=0; i<numSelectOptions; ++i) {
 				var option=document.createElement("OPTION");
 				var optionData=this.options[i];
-				option.text=optionData.text;
+				option.text=optionData.name;
 				select.add(option);
 			}
-			setTimeout(function(){$(select).chosen();});//wont be correctly "chosenized" before having been added to DOM
+			//setTimeout(function(){$(select).chosen({no_results_text:"jkjk"});});//wont be correctly "chosenized" before having been added to DOM
+			setTimeout(function(){$(select).chosen({no_results_text:offerToCreateOption});});//wont be correctly "chosenized" before having been added to DOM
 			return td;
 			
 			function inputFieldOnChange(event) {
-				for (var grid,elem=$(input.parentElement); !(grid=elem.data("JSGrid")); elem=elem.parent());
 				var fieldName=grid.fields[td.cellIndex].name;
 				var dataItem=grid.data[td.parentElement.rowIndex];
 				dataItem[fieldName]=input.value;
+			}
+			function offerToCreateOption(searchString) {
+				var createButton=document.createElement("button");
+				createButton.innerHTML='Create "'+searchString+'"';
+				$(createButton).click(createOption);
+				return createButton;
+				function createOption() {
+					var cellIndex=td.cellIndex;
+					var rowIndex=td.parentElement.rowIndex;
+					grid.fields[cellIndex].options.push({name:searchString});
+					var rows=td.parentElement.parentElement.rows;
+					var numRows=rows.length;
+					for (var i=0; i<numRows; ++i) {
+						var otherSelect=rows[i].cells[cellIndex].firstChild;
+						var option=document.createElement("OPTION");
+						option.text=searchString;
+						otherSelect.add(option);
+						if (i==rowIndex) {
+							select.value=searchString;
+						}
+						$(otherSelect).trigger("chosen:updated");
+					}
+				}
 			}
 		}
 	});
