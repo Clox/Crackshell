@@ -46,6 +46,7 @@ function getCategories() {
 }
 function gotCategories(data) {
 	categories=data;
+	categories.unshift({name:"-"});
 }
 
 function getTransactions() {
@@ -213,7 +214,6 @@ function parseRows() {
 		gridRow.specification=cols[1];
 		gridRow.country=cols[3];
 		gridRow.amount=parseFloat(cols[4].replace(",","."));
-		gridRow.categoryId="hoho";
 		newGridRows.push(gridRow);
 	}
 	setupNewRowsGrid();
@@ -233,14 +233,88 @@ function parseDate(string) {
 	return dateString;
 }
 
+function guessCategories() {
+	var numRows=newGridRows.length;
+	var numTransactions=transactions.length;
+	for (var newRowI=0; newRowI<numRows; ++newRowI) {
+		var newRow=newGridRows[newRowI];
+		var newRowSpecification=newRow.specification;
+		var likeliestCategoryId;
+		var highestSimilarity=Number.NEGATIVE_INFINITY;
+		for (var oldRowI=0; oldRowI<numTransactions; ++oldRowI) {
+			var oldRow=transactions[oldRowI];
+			if (oldRow.categoryId) {
+				var similarity=similar_text(newRowSpecification,oldRow.specification);
+				if (similarity>highestSimilarity) {
+					highestSimilarity=similarity;
+					likeliestCategoryId=oldRow.categoryId;
+					newRow.highestSimilarity=highestSimilarity;
+				}
+			}
+		}
+		if (highestSimilarity/newRowSpecification.length>0.6) {
+			newRow.categoryId=likeliestCategoryId;
+			console.log(likeliestCategoryId);
+		}
+	}
+}
+
+function similar_text (first, second) {
+    // Calculates the similarity between two strings  
+    // discuss at: http://phpjs.org/functions/similar_text
+
+    if (first === null || second === null || typeof first === 'undefined' || typeof second === 'undefined') {
+        return 0;
+    }
+
+    first += '';
+    second += '';
+
+    var pos1 = 0,
+        pos2 = 0,
+        max = 0,
+        firstLength = first.length,
+        secondLength = second.length,
+        p, q, l, sum;
+
+    max = 0;
+
+    for (p = 0; p < firstLength; p++) {
+        for (q = 0; q < secondLength; q++) {
+            for (l = 0;
+            (p + l < firstLength) && (q + l < secondLength) && (first.charAt(p + l) === second.charAt(q + l)); l++);
+            if (l > max) {
+                max = l;
+                pos1 = p;
+                pos2 = q;
+            }
+        }
+    }
+
+    sum = max;
+
+    if (sum) {
+        if (pos1 && pos2) {
+            sum += this.similar_text(first.substr(0, pos2), second.substr(0, pos2));
+        }
+
+        if ((pos1 + max < firstLength) && (pos2 + max < secondLength)) {
+            sum += this.similar_text(first.substr(pos1 + max, firstLength - pos1 - max), second.substr(pos2 + max, secondLength - pos2 - max));
+        }
+    }
+
+    return sum;
+}
+
 function setupNewRowsGrid() {
+	guessCategories();
 	newTransactionsGridFields=[
-            { name:"date",title: "Datum", type: "inputRender",width:20},
-			{ name:"country",title: "Land", type: "inputRender",width:40},
-            { name: "specification", title:"Specifikation", type: "inputRender"},
-			{ name: "amount", title:"Belopp", type: "inputRender",inputType:"number",width:15},
-			{ name: "categoryId", title:"Kategori", type: "chosenRender",options:categories,width:40}
-        ];
+		{ name:"date",title: "Datum", type: "inputRender",width:20},
+		{ name:"country",title: "Land", type: "inputRender",width:40},
+		{ name: "specification", title:"Specifikation", type: "inputRender"},
+		{ name: "amount", title:"Belopp", type: "inputRender",inputType:"number",width:15},
+		{ name: "categoryId", title:"Kategori", type: "chosenRender",options:categories,width:40}
+	];
 	$("#newRowsGrid").jsGrid({
         width: "100%",
 		height:"calc(100% - 285px)",
@@ -379,6 +453,8 @@ function setupJsGridChosenRenderField() {
 		css:"chosenRenderField",
 		cellRenderer:function(value,item) {
 			var grid=this._grid;
+			for (var i=this.options.length-1;i>=0&&this.options[i].id!=value; --i);
+			var categoryName=this.options[i].name;
 			var createOptionFunc=this.createOptionFunc;
 			var td=document.createElement("TD");
 			var select=document.createElement("SELECT");
@@ -390,6 +466,7 @@ function setupJsGridChosenRenderField() {
 				option.text=optionData.name;
 				select.add(option);
 			}
+			select.value=categoryName;
 			//setTimeout(function(){$(select).chosen({no_results_text:"jkjk"});});//wont be correctly "chosenized" before having been added to DOM
 			setTimeout(function(){$(select).chosen({no_results_text:offerToCreateOption});});//wont be correctly "chosenized" before having been added to DOM
 			return td;
