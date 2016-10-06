@@ -7,6 +7,7 @@
 var yesterdayString;
 var newGridRows=[];
 var categories;
+var categoriesById;
 var transactions;
 var tabLoads={0:setupTransactionPage,2:setupCategoriesPage};
 var newTransactionsGridFields;
@@ -46,7 +47,10 @@ function getCategories() {
 }
 function gotCategories(data) {
 	categories=data;
-	categories.unshift({name:"-"});
+	categoriesById={};
+	for (var i=categories.length-1; i>=0; --i) {
+		categoriesById[categories[i].id]=categories[i];
+	}
 }
 
 function getTransactions() {
@@ -253,8 +257,7 @@ function guessCategories() {
 			}
 		}
 		if (highestSimilarity/newRowSpecification.length>0.6) {
-			newRow.categoryId=likeliestCategoryId;
-			console.log(likeliestCategoryId);
+			newRow.category=categoriesById[likeliestCategoryId].name;
 		}
 	}
 }
@@ -308,12 +311,16 @@ function similar_text (first, second) {
 
 function setupNewRowsGrid() {
 	guessCategories();
+	var categoryNames=["-"];
+	for (var i=0; i<categories.length; ++i) {
+		categoryNames.push(categories[i].name);
+	}
 	newTransactionsGridFields=[
 		{ name:"date",title: "Datum", type: "inputRender",width:20},
 		{ name:"country",title: "Land", type: "inputRender",width:40},
 		{ name: "specification", title:"Specifikation", type: "inputRender"},
 		{ name: "amount", title:"Belopp", type: "inputRender",inputType:"number",width:15},
-		{ name: "categoryId", title:"Kategori", type: "chosenRender",options:categories,width:40}
+		{ name: "category", title:"Kategori", type: "chosenRender",options:categoryNames,width:40}
 	];
 	$("#newRowsGrid").jsGrid({
         width: "100%",
@@ -452,29 +459,33 @@ function setupJsGridChosenRenderField() {
 		//css: "input-field",            // redefine general property 'css'
 		css:"chosenRenderField",
 		cellRenderer:function(value,item) {
+			var fieldName=this.name;
 			var grid=this._grid;
-			for (var i=this.options.length-1;i>=0&&this.options[i].id!=value; --i);
-			var categoryName=this.options[i].name;
+			var createOptionCallback=this.createOptionCallback;
+			var options=this.options;
+
 			var createOptionFunc=this.createOptionFunc;
 			var td=document.createElement("TD");
 			var select=document.createElement("SELECT");
 			td.appendChild(select);
-			var numSelectOptions=this.options.length;
+			var numSelectOptions=options.length;
 			for (var i=0; i<numSelectOptions; ++i) {
 				var option=document.createElement("OPTION");
-				var optionData=this.options[i];
-				option.text=optionData.name;
+				option.text=options[i];
 				select.add(option);
 			}
-			select.value=categoryName;
-			//setTimeout(function(){$(select).chosen({no_results_text:"jkjk"});});//wont be correctly "chosenized" before having been added to DOM
-			setTimeout(function(){$(select).chosen({no_results_text:offerToCreateOption});});//wont be correctly "chosenized" before having been added to DOM
+			select.value=value?value:'-';
+			setTimeout(function(){$(select).chosen({no_results_text:offerToCreateOption}).change(onChange);});//wont be correctly "chosenized" before having been added to DOM
+			//$(select).chosen().change(onChange);
 			return td;
 			
-			function inputFieldOnChange(event) {
-				var fieldName=grid.fields[td.cellIndex].name;
-				var dataItem=grid.data[td.parentElement.rowIndex];
-				dataItem[fieldName]=input.value;
+			function onChange(event,select) {
+				var selected=select.selected;
+				for (var i=options.length-1;i>=0&&options[i].name!=selected; --i);
+				if (options[i].id)
+					item[fieldName]=options[i].id;
+				else
+					item[fieldName]=selected;
 			}
 			function offerToCreateOption(searchString) {
 				var createButton=document.createElement("button");
@@ -482,6 +493,7 @@ function setupJsGridChosenRenderField() {
 				$(createButton).click(createOption);
 				return createButton;
 				function createOption() {
+					item[fieldName]=searchString;
 					var cellIndex=td.cellIndex;
 					var rowIndex=td.parentElement.rowIndex;
 					grid.fields[cellIndex].options.push({name:searchString});
@@ -496,6 +508,7 @@ function setupJsGridChosenRenderField() {
 							select.value=searchString;
 						}
 						$(otherSelect).trigger("chosen:updated");
+						createOptionCallback&&createOptionCallback();
 					}
 				}
 			}
