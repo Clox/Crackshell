@@ -8,38 +8,51 @@ var yesterdayString;
 var newGridRows=[];
 var categories;
 var transactions;
+var tabLoads={0:setupTransactionPage,2:setupCategoriesPage};
 $(init);
 
 function init() {
 	setupJsGridCustomFields();
 	setupMainTabs();
-	$.when(getCategories()).then(getTransactions());
+	$.when(getCategories(),getTransactions()).done(dataLoaded);
 	setupAddPage();
-	setupCategoriesPage();
-	
-	$("#mainTabs").tabs("option","active",1);
 //	parseRows();
+}
+
+function dataLoaded() {
+	$("#mainTabs").tabs("option","disabled",false);
+	mainTabActivate();
 }
 
 function setupMainTabs() {
 	$("#mainTabs").tabs({
-		activate: function(event ,ui){
-		},
-		active:null
+		activate: mainTabActivate,
+		disabled:true,
+		active:0
 	});
 }
 
-function getCategories() {
-	return $.getJSON("controller.php",{func:"getCategories"},setupCategories);
+function mainTabActivate(event,ui) {
+	var tabIndex=$("#mainTabs").tabs("option","active");
+	if (tabLoads[tabIndex]) {
+		tabLoads[tabIndex]();
+		delete tabLoads[tabIndex];
+	}
 }
 
-function setupCategories(data) {
+function getCategories() {
+	return $.getJSON("controller.php",{func:"getCategories"},gotCategories);
+}
+function gotCategories(data) {
 	categories=data;
-	setupCategoriesPage();
 }
 
 function getTransactions() {
 	return $.getJSON("controller.php",{func:"getTransactions"},gotTransactions);
+}
+
+function gotTransactions(data) {
+	transactions=data;
 }
 
 function setupCategoriesPage() {
@@ -84,11 +97,11 @@ function categoryInserted(event) {
 	}
 }
 
-function gotTransactions(rows) {
-	transactions=[];
-	var numRows=rows.length;
+function setupTransactionPage() {
+	transactionRows=[];
+	var numRows=transactions.length;
 	for (var i=0; i<numRows; ++i) {
-		var rowData=rows[i];
+		var rowData=transactions[i];
 		var row={};
 		row.id=rowData.id;
 		row.date=rowData.date;
@@ -97,19 +110,19 @@ function gotTransactions(rows) {
 		row.amount=rowData.amount;
 		row.country=rowData.country;
 		row.addedAt=timestampToString(rowData.addedAt);
-		transactions.push(row);
+		transactionRows.push(row);
 	}
-	setupRowsGrid();
+	setupRowsGrid(transactionRows);
 }
 
-function setupRowsGrid() {
+function setupRowsGrid(transactionRows) {
 	var categoriesClone=JSON.parse(JSON.stringify(categories));
 	categoriesClone.unshift({name:"",id:0});
 	$("#viewGrid").jsGrid({
         height: "90%",
         width: "100%",
         sorting: true,
-		data:transactions,
+		data:transactionRows,
 		editing: true,
         deleteConfirm: "Do you really want to delete the client?",
         fields: [
