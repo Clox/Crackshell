@@ -23,6 +23,13 @@ function init() {
 
 function dataLoaded() {
 	$("#mainTabs").tabs("option","disabled",false);
+	for (var i=transactions.length-1; i>=0; --i) {
+		var transaction=transactions[i];
+		if (transaction.categoryId) {
+			transaction.category=categoriesById[transaction.categoryId].name;
+		}
+		delete transaction.categoryId;
+	}
 	mainTabActivate();
 }
 
@@ -237,7 +244,7 @@ function parseDate(string) {
 	return dateString;
 }
 
-function guessCategories() {
+function guessCategoriesOld() {
 	var numRows=newGridRows.length;
 	var numTransactions=transactions.length;
 	for (var newRowI=0; newRowI<numRows; ++newRowI) {
@@ -248,7 +255,7 @@ function guessCategories() {
 		for (var oldRowI=0; oldRowI<numTransactions; ++oldRowI) {
 			var oldRow=transactions[oldRowI];
 			if (oldRow.categoryId) {
-				var similarity=similar_text(newRowSpecification,oldRow.specification);
+				var similarity=transactionStringMatch(newRowSpecification,oldRow.specification);
 				if (similarity>highestSimilarity) {
 					highestSimilarity=similarity;
 					likeliestCategoryId=oldRow.categoryId;
@@ -256,9 +263,73 @@ function guessCategories() {
 				}
 			}
 		}
-		if (highestSimilarity/newRowSpecification.length>0.6) {
+		if (highestSimilarity>0.4) {
 			newRow.category=categoriesById[likeliestCategoryId].name;
 		}
+	}
+}
+
+/**Compares a single transaction to an array of transactions to guess categor(y|ies).
+ * - If the single transaction lacks a category then it is the transaction that a category will be guessed for by
+ * comparing it with the array of transactions. The function will then return the transaction from the array that is the
+ * best match while not lacking a category.
+ * - If the single transaction already has a category then categories will be guessed for the ones in the array by
+ * comparing them to the single transaction. In this case an array of the transactions that got a better match with the
+ * single transaction than what they had before will be returned.
+ * @param {type} transaction
+ * @param {type} transactions
+ * @returns {undefined}*/
+function transactionCompare(transaction,transactions) {
+	var result;
+	var guessForTheSingle=!transaction.category;
+	var guessForTransaction,otherTransaction;
+	if (guessForTheSingle)
+		guessForTransaction=transaction;
+	else {
+		otherTransaction=transaction;
+		result=[];
+	}
+	for (var i=transactions.length-1; i>=0; --i) {
+		if (guessForTheSingle) {
+			otherTransaction=transactions[i];
+			if (!otherTransaction.category)
+				continue;
+		} else {
+			guessForTransaction=transactions[i];
+			if (guessForTransaction===otherTransaction)
+				continue;
+		}
+		var similarity=transactionStringMatch(guessForTransaction.specification,otherTransaction.specification);
+		if (similarity>0.4&&(!guessForTransaction.highestSimilarity||similarity>guessForTransaction.highestSimilarity)){
+			guessForTransaction.highestSimilarity=similarity;
+			if (guessForTheSingle)
+				result=otherTransaction;
+			else
+				result.push(guessForTransaction);
+		}
+	}
+	return result;
+}
+
+function newTransactionsCategoryChange(item) {
+	var transactionsAlikeThis=transactionCompare(item,newGridRows);
+	for (var i=transactionsAlikeThis.length-1; i>=0; --i) {
+		suggestCategoryForNewTransaction(item.category,transactionsAlikeThis[i]);
+	}
+}
+
+function suggestCategoryForNewTransaction(category,transaction) {
+	for (var fieldI=0; newTransactionsGridFields[fieldI].name!=="category"; ++fieldI);
+	var rowI=newGridRows.indexOf(transaction);
+	var td=$("#newRowsGrid>.jsgrid-grid-body tr:nth-child("+(rowI+1)+")>td:nth-child("+(fieldI+1)+")")[0];
+	var button=document.createElement("BUTTON");
+	button.innerHTML=category;
+	td.appendChild(button);
+	$(button).click(followSuggestion);
+	function followSuggestion() {
+		$(button).remove();
+		$(td).find("select").val(category).trigger("chosen:updated");
+		transaction.category=category;
 	}
 }
 
@@ -310,7 +381,13 @@ function similar_text (first, second) {
 }
 
 function setupNewRowsGrid() {
-	guessCategories();
+	for (var i=newGridRows.length-1; i>=0; --i) {
+		var bestMatch=transactionCompare(newGridRows[i],transactions);
+		if (bestMatch) {
+			newGridRows[i].category=bestMatch.category;
+		}
+	}
+
 	var categoryNames=["-"];
 	for (var i=0; i<categories.length; ++i) {
 		categoryNames.push(categories[i].name);
@@ -320,7 +397,8 @@ function setupNewRowsGrid() {
 		{ name:"country",title: "Land", type: "inputRender",width:40},
 		{ name: "specification", title:"Specifikation", type: "inputRender"},
 		{ name: "amount", title:"Belopp", type: "inputRender",inputType:"number",width:15},
-		{ name: "category", title:"Kategori", type: "chosenRender",options:categoryNames,width:40}
+		{ name: "category", title:"Kategori", type: "chosenRender",options:categoryNames,width:40
+			,changeCallback:newTransactionsCategoryChange}
 	];
 	$("#newRowsGrid").jsGrid({
         width: "100%",
@@ -328,7 +406,7 @@ function setupNewRowsGrid() {
         sorting: true,
 		data:newGridRows,
         deleteConfirm: "Do you really want to delete the client?",
-        fields: newTransactionsGridFields,
+        fields: newTransactionsGridFields
     });
 }
 function pad(n, width, z) {
@@ -396,7 +474,6 @@ function setupJsGridInputField() {
 			input.value=value;
 			$(input).change(inputFieldOnChange);
 			var grid=this._grid;
-			ggrid=grid;
 			return td;
 			
 			function inputFieldOnChange(event) {
@@ -462,6 +539,7 @@ function setupJsGridChosenRenderField() {
 			var fieldName=this.name;
 			var grid=this._grid;
 			var createOptionCallback=this.createOptionCallback;
+			var changeCallback=this.changeCallback;
 			var options=this.options;
 
 			var createOptionFunc=this.createOptionFunc;
@@ -476,16 +554,11 @@ function setupJsGridChosenRenderField() {
 			}
 			select.value=value?value:'-';
 			setTimeout(function(){$(select).chosen({no_results_text:offerToCreateOption}).change(onChange);});//wont be correctly "chosenized" before having been added to DOM
-			//$(select).chosen().change(onChange);
 			return td;
 			
 			function onChange(event,select) {
-				var selected=select.selected;
-				for (var i=options.length-1;i>=0&&options[i].name!=selected; --i);
-				if (options[i].id)
-					item[fieldName]=options[i].id;
-				else
-					item[fieldName]=selected;
+				item[fieldName]=select.selected=='-'?null:select.selected;
+				changeCallback&&changeCallback(item);
 			}
 			function offerToCreateOption(searchString) {
 				var createButton=document.createElement("button");
@@ -509,9 +582,17 @@ function setupJsGridChosenRenderField() {
 						}
 						$(otherSelect).trigger("chosen:updated");
 						createOptionCallback&&createOptionCallback();
+						changeCallback&&changeCallback(item);
 					}
 				}
 			}
 		}
 	});
+}
+function transactionStringMatch(string1,string2) {
+	if (string1===string2)
+		return 1;
+    var shortestLength=Math.min(string1.length,string2.length);
+	for (var i=0; i<shortestLength&&string1[i]===string2[i]; ++i);
+	return i/shortestLength;
 }
