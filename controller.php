@@ -2,7 +2,8 @@
 require_once './settings.php';
 if (php_sapi_name() === 'cli') {
 	//$_GET=['func'=>'getInvestments','numHoldings'=>4,'factorSettings'=>'{"weightScoreDropRate":280}'];
-	$_POST=['func'=>'editTransaction','id'=>'8','changes'=>'{"category":"1","specification":"APOTEKET L RKAN1"}'];
+	//$_POST=['func'=>'editTransaction','id'=>'8','changes'=>'{"category":"1","specification":"APOTEKET L RKAN1"}'];
+	$_POST=['func'=>'addNewTransactions'];
 } else {
 	set_time_limit(120);
 }
@@ -21,10 +22,12 @@ function controller_get_getTransactions($vars) {
 }
 
 function controller_post_addNewTransactions($vars) {
-	$transactions=$vars['transactions'];
-	$transactions=json_decode($transactions,true);
+	file_put_contents('testingdata.json', json_encode($vars));
+	$vars=  json_decode(file_get_contents('testingdata.json'),true);
+	$transactions=json_decode($vars['transactions'],true);
+	$newCategories=json_decode($vars['newCategories'],true);
 	$crackshell=new Crackshell();
-	$crackshell->addTransactions($transactions);
+	$crackshell->addTransactions($transactions,$newCategories);
 }
 
 function controller_post_createCategory($vars) {

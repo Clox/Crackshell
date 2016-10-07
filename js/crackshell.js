@@ -7,7 +7,7 @@
 var yesterdayString;
 var newGridRows=[];
 var categories;
-var categoriesById;
+var categoriesById,categoriesByName;
 var transactions;
 var tabLoads={0:setupTransactionPage,2:setupCategoriesPage};
 var newTransactionsGridFields;
@@ -17,12 +17,18 @@ $(init);
 function init() {
 	setupJsGridCustomFields();
 	setupMainTabs();
-	$.when(getCategories(),getTransactions()).done(dataLoaded,parseRows);
+	$.when(getCategories(),getTransactions()).done(dataLoaded);
 	setupAddPage();
 }
 
 function dataLoaded() {
 	$("#mainTabs").tabs("option","disabled",false);
+	categoriesById={};
+	categoriesByName={};
+	for (var i=categories.length-1; i>=0; --i) {
+		categoriesById[categories[i].id]=categoriesByName[categories[i].name]=categories[i];
+		
+	}
 	for (var i=transactions.length-1; i>=0; --i) {
 		var transaction=transactions[i];
 		if (transaction.categoryId) {
@@ -30,6 +36,7 @@ function dataLoaded() {
 		}
 		delete transaction.categoryId;
 	}
+	setupNewRowsGrid();
 	mainTabActivate();
 }
 
@@ -54,10 +61,6 @@ function getCategories() {
 }
 function gotCategories(data) {
 	categories=data;
-	categoriesById={};
-	for (var i=categories.length-1; i>=0; --i) {
-		categoriesById[categories[i].id]=categories[i];
-	}
 }
 
 function getTransactions() {
@@ -111,6 +114,8 @@ function categoryInserted(event) {
 }
 
 function setupTransactionPage() {
+	setupRowsGrid(transactions);
+	return;
 	transactionRows=[];
 	var numRows=transactions.length;
 	for (var i=0; i<numRows; ++i) {
@@ -129,8 +134,10 @@ function setupTransactionPage() {
 }
 
 function setupRowsGrid(transactionRows) {
-	var categoriesClone=JSON.parse(JSON.stringify(categories));
-	categoriesClone.unshift({name:"",id:0});
+	var categoryNames=["-"];
+	for (var i=0; i<categories.length; ++i) {
+		categoryNames.push(categories[i].name);
+	}
 	$("#viewGrid").jsGrid({
         height: "90%",
         width: "100%",
@@ -141,7 +148,7 @@ function setupRowsGrid(transactionRows) {
         fields: [
             { name:"id",title: "ID", type: "number",width:60,readOnly:true},
 			{ name:"date",title: "Datum", type: "text",width:35},
-			{ name:"categoryId",title: "Kategori", type: "select",items:categoriesClone,textField:'name'
+			{ name:"category",title: "Kategori", type: "text",items:categoryNames,textField:'name'
 				,valueField:'id',width:30,valueType:"string"},
             { name: "specification", title:"Specifikation", type: "text"},
 			{ name: "amount", title:"Belopp", type: "number",width:25,editValue:jsGridDecimalEdit},
@@ -205,12 +212,32 @@ function setupAddPage() {
 }
 
 function addNewRows () {
-	$.post("controller.php", {func:"addNewTransactions",transactions:JSON.stringify(newGridRows)}, addedNewTransactions
-	,"json");
+	var transactionsData=[];
+	var newCategories=[];
+	for (var i=newGridRows.length-1; i>=0; --i) {
+		var transaction=newGridRows[i];
+		var transactionData={specification:transaction.specification,amount:transaction.amount
+			,country:transaction.country,date:transaction.date};
+		if (transaction.category) {
+			var category=categoriesByName[transaction.category];
+			if (category) {
+				transactionData.categoryId=category.id;
+			} else {
+				transactionData.categoryName=transaction.category;
+				if (-1===newCategories.indexOf(transaction.category))
+					newCategories.push(transaction.category);
+			}
+		}
+		transactionsData.push(transactionData);
+	}
+	$.post("controller.php", {func:"addNewTransactions",transactions:JSON.stringify(transactionsData)
+		,newCategories:JSON.stringify(newCategories)},transactionsAdded,"json");
+	newGridRows=[];
+	setupNewRowsGrid();
 }
 
-function addedNewTransactions() {
-	getTransactions();
+function transactionsAdded(data) {
+	
 }
 
 function parseRows() {
@@ -244,31 +271,6 @@ function parseDate(string) {
 	return dateString;
 }
 
-function guessCategoriesOld() {
-	var numRows=newGridRows.length;
-	var numTransactions=transactions.length;
-	for (var newRowI=0; newRowI<numRows; ++newRowI) {
-		var newRow=newGridRows[newRowI];
-		var newRowSpecification=newRow.specification;
-		var likeliestCategoryId;
-		var highestSimilarity=Number.NEGATIVE_INFINITY;
-		for (var oldRowI=0; oldRowI<numTransactions; ++oldRowI) {
-			var oldRow=transactions[oldRowI];
-			if (oldRow.categoryId) {
-				var similarity=transactionStringMatch(newRowSpecification,oldRow.specification);
-				if (similarity>highestSimilarity) {
-					highestSimilarity=similarity;
-					likeliestCategoryId=oldRow.categoryId;
-					newRow.highestSimilarity=highestSimilarity;
-				}
-			}
-		}
-		if (highestSimilarity>0.4) {
-			newRow.category=categoriesById[likeliestCategoryId].name;
-		}
-	}
-}
-
 /**Compares a single transaction to an array of transactions to guess categor(y|ies).
  * - If the single transaction lacks a category then it is the transaction that a category will be guessed for by
  * comparing it with the array of transactions. The function will then return the transaction from the array that is the
@@ -300,7 +302,7 @@ function transactionCompare(transaction,transactions) {
 				continue;
 		}
 		var similarity=transactionStringMatch(guessForTransaction.specification,otherTransaction.specification);
-		if (similarity>0.4&&(!guessForTransaction.highestSimilarity||similarity>guessForTransaction.highestSimilarity)){
+		if (similarity>.4&&(!guessForTransaction.highestSimilarity||similarity>guessForTransaction.highestSimilarity)) {
 			guessForTransaction.highestSimilarity=similarity;
 			if (guessForTheSingle)
 				result=otherTransaction;
@@ -312,9 +314,11 @@ function transactionCompare(transaction,transactions) {
 }
 
 function newTransactionsCategoryChange(item) {
-	var transactionsAlikeThis=transactionCompare(item,newGridRows);
-	for (var i=transactionsAlikeThis.length-1; i>=0; --i) {
-		suggestCategoryForNewTransaction(item.category,transactionsAlikeThis[i]);
+	if (item.category) {//don't do anything if category was set to null
+		var transactionsAlikeThis=transactionCompare(item,newGridRows);
+		for (var i=transactionsAlikeThis.length-1; i>=0; --i) {
+			suggestCategoryForNewTransaction(item.category,transactionsAlikeThis[i]);
+		}
 	}
 }
 
@@ -393,12 +397,13 @@ function setupNewRowsGrid() {
 		categoryNames.push(categories[i].name);
 	}
 	newTransactionsGridFields=[
-		{ name:"date",title: "Datum", type: "inputRender",width:20},
+		{ name:"date",title: "Datum", type: "inputRender",width:25},
 		{ name:"country",title: "Land", type: "inputRender",width:40},
 		{ name: "specification", title:"Specifikation", type: "inputRender"},
-		{ name: "amount", title:"Belopp", type: "inputRender",inputType:"number",width:15},
+		{ name: "amount", title:"Belopp", type: "inputRender",inputType:"number",width:30},
 		{ name: "category", title:"Kategori", type: "chosenRender",options:categoryNames,width:40
-			,changeCallback:newTransactionsCategoryChange}
+			,changeCallback:newTransactionsCategoryChange},
+		{type:"control", editButton:false, width:10}
 	];
 	$("#newRowsGrid").jsGrid({
         width: "100%",
@@ -406,8 +411,11 @@ function setupNewRowsGrid() {
         sorting: true,
 		data:newGridRows,
         deleteConfirm: "Do you really want to delete the client?",
-        fields: newTransactionsGridFields
-    });
+        fields: newTransactionsGridFields,
+		noDataContent:null,
+		confirmDeleting: false,
+		inserting: true,
+    }).find(".jsgrid-insert-mode-button").click().remove();
 }
 function pad(n, width, z) {
   z = z || '0';
@@ -553,8 +561,13 @@ function setupJsGridChosenRenderField() {
 				select.add(option);
 			}
 			select.value=value?value:'-';
-			setTimeout(function(){$(select).chosen({no_results_text:offerToCreateOption}).change(onChange);});//wont be correctly "chosenized" before having been added to DOM
+			setTimeout(chosenize);//wont be correctly "chosenized" before having been added to DOM
 			return td;
+			
+			function chosenize() {
+				$(select).chosen({no_results_text:offerToCreateOption}).change(onChange)
+				.next().css("width","100%");
+			}
 			
 			function onChange(event,select) {
 				item[fieldName]=select.selected=='-'?null:select.selected;

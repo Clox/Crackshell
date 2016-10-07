@@ -25,18 +25,27 @@ class Crackshell {
 		return $transactions;
 	}
 	
-	public function addTransactions($transactions) {
+	public function addTransactions($transactions,$newCategories) {
 		global $db;
-		$values=[];
+		foreach ($newCategories as $categoryName) {
+			$newCategoryIdByName[$categoryName]=$this->createCategory($categoryName);
+		}
 		foreach ($transactions as $transac) {
 			$values[]=$transac['date'];
 			$values[]=$transac['amount'];
 			$values[]=$transac['specification'];
 			$values[]=$transac['country'];
+			if (isset($transac['categoryId'])) {
+				$values[]=$transac['categoryId'];
+			} else if (isset($transac['categoryName'])) {
+				$values[]=$newCategoryIdByName[$transac['categoryName']];
+			} else {
+				$values[]=null;
+			}
 		}
-		$placeHolders_imploded=implode(',',array_fill(0,count($transactions),'(?,?,?,?)'));
+		$placeHolders_imploded=implode(',',array_fill(0,count($transactions),'(?,?,?,?,?)'));
 		$prepared=$db->prepare
-				("INSERT INTO transactions (date,amount,specification,country) VALUES $placeHolders_imploded");
+			("INSERT INTO transactions (date,amount,specification,country,categoryId) VALUES $placeHolders_imploded");
 		$prepared->execute($values);
 	}
 	
