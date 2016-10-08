@@ -178,7 +178,11 @@ function transactionEdit(event) {
 		if (newItem.hasOwnProperty(field)) {
 			if (newItem[field]!==oldItem[field]) {
 				if (field==="category") {
-					changes.categoryId=categoriesByName[newItem[field]].id;
+					var category=categoriesByName[newItem[field]];
+					if (category)
+						changes.categoryId=category.id;
+					else
+						changes.categoryName=newItem[field];
 				} else {
 					changes[field]=newItem[field];
 				}
@@ -193,7 +197,14 @@ function transactionEdit(event) {
 
 function editTransaction(id,changes) {
 	changes=JSON.stringify(changes);
-	$.post("controller.php", {func:"editTransaction",id:id,changes:changes}, null,"json");
+	$.post("controller.php", {func:"editTransaction",id:id,changes:changes}, transactionEdited,"json");
+}
+
+function transactionEdited(data) {
+	console.log(data);
+	if (data.newCategory) {
+		categories.push(categoriesById[data.newCategory.id]=categoriesByName[data.newCategory.name]=data.newCategory);
+	}
 }
 
 function timestampToString(timestamp,time) {
@@ -621,6 +632,8 @@ function setupJsGridChosenField() {
 				var option=document.createElement("OPTION");
 				option.text=this.options[i];
 				select.add(option);
+				if (value==null)
+					value="-";
 				select.value=value;
 			}
 			setTimeout(chosenize);//wont be correctly "chosenized" before having been added to DOM
@@ -636,24 +649,9 @@ function setupJsGridChosenField() {
 				$(createButton).click(createOption);
 				return createButton;
 				function createOption() {
-					item[fieldName]=searchString;
-					var cellIndex=td.cellIndex;
-					var rowIndex=td.parentElement.rowIndex;
-					grid.fields[cellIndex].options.push({name:searchString});
-					var rows=td.parentElement.parentElement.rows;
-					var numRows=rows.length;
-					for (var i=0; i<numRows; ++i) {
-						var otherSelect=rows[i].cells[cellIndex].firstChild;
-						var option=document.createElement("OPTION");
-						option.text=searchString;
-						otherSelect.add(option);
-						if (i==rowIndex) {
-							select.value=searchString;
-						}
-						$(otherSelect).trigger("chosen:updated");
-						createOptionCallback&&createOptionCallback();
-						changeCallback&&changeCallback(item);
-					}
+					var option=document.createElement("OPTION");
+					option.text=searchString;
+					$(select).append(option).val(searchString).trigger("chosen:updated");
 				}
 			}
 		},

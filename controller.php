@@ -49,6 +49,7 @@ function controller_post_deleteCategory($vars) {
 
 function controller_post_editTransaction($vars) {
 	$transactionId=$vars['id'];
-	$changes=json_decode($vars['changes']);
-	(new Crackshell)->editTransaction($transactionId,$changes);
+	$changes=json_decode($vars['changes'],true);
+	$result=(new Crackshell)->editTransaction($transactionId,$changes);
+	echo json_encode($result);
 }

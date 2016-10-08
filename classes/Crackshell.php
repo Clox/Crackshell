@@ -68,6 +68,12 @@ class Crackshell {
 	
 	public function editTransaction($id,$changes) {
 		global $db;
+		$result=[];
+		if (isset($changes['categoryName'])) {
+			$categoryId=$changes['categoryId']=$this->createCategory($changes['categoryName']);
+			$result['newCategory']=['id'=>$categoryId,'name'=>$changes['categoryName']];
+			unset ($changes['categoryName']);
+		}
 		foreach ($changes as $key=>$val) {
 			$sets[]="$key=?";
 			$vals[]=$val;
@@ -75,5 +81,6 @@ class Crackshell {
 		$sets_imploded=implode(',',$sets);
 		$prep=$db->prepare("UPDATE transactions SET $sets_imploded WHERE id=$id");
 		$prep->execute($vals);
+		return $result;
 	}
 }
