@@ -12,6 +12,7 @@ var transactions;
 var tabLoads={0:setupTransactionPage,2:setupCategoriesPage};
 var newTransactionsGridFields;
 var updateCategoriesOnRefresh;
+var initilMainTabIndex=0;
 $(init);
 
 function init() {
@@ -44,7 +45,7 @@ function setupMainTabs() {
 	$("#mainTabs").tabs({
 		activate: mainTabActivate,
 		disabled:true,
-		active:1
+		active:initilMainTabIndex
 	});
 }
 
@@ -146,9 +147,9 @@ function setupRowsGrid(transactionRows) {
 		editing: true,
         deleteConfirm: "Do you really want to delete the client?",
         fields: [
-            { name:"id",title: "ID", type: "number",width:60,readOnly:true},
+            { name:"id",title: "ID", type: "number",width:10,readOnly:true},
 			{ name:"date",title: "Datum", type: "text",width:35},
-			{ name:"category",title: "Kategori", type: "text",items:categoryNames,textField:'name'
+			{ name:"category",title: "Kategori", type: "chosen",options:categoryNames,textField:'name'
 				,valueField:'id',width:30,valueType:"string"},
             { name: "specification", title:"Specifikation", type: "text"},
 			{ name: "amount", title:"Belopp", type: "number",width:25,editValue:jsGridDecimalEdit},
@@ -175,8 +176,12 @@ function transactionEdit(event) {
 	var change=false;
 	for (var field in newItem) {
 		if (newItem.hasOwnProperty(field)) {
-			if (newItem[field]!=oldItem[field]) {
-				changes[field]=newItem[field];
+			if (newItem[field]!==oldItem[field]) {
+				if (field==="category") {
+					changes.categoryId=categoriesByName[newItem[field]].id;
+				} else {
+					changes[field]=newItem[field];
+				}
 				change=true;
 			}
 		}
@@ -188,7 +193,7 @@ function transactionEdit(event) {
 
 function editTransaction(id,changes) {
 	changes=JSON.stringify(changes);
-	$.post("controller.php", {func:"editTransaction",id:id,changes:changes}, addedNewTransactions,"json");
+	$.post("controller.php", {func:"editTransaction",id:id,changes:changes}, null,"json");
 }
 
 function timestampToString(timestamp,time) {
@@ -401,7 +406,7 @@ function setupNewRowsGrid() {
 		{ name:"country",title: "Land", type: "inputRender",width:40},
 		{ name: "specification", title:"Specifikation", type: "inputRender"},
 		{ name: "amount", title:"Belopp", type: "inputRender",inputType:"number",width:30},
-		{ name: "category", title:"Kategori", type: "chosenRender",options:categoryNames,width:40
+		{ name: "category", title:"Kategori", type: "chosenView",options:categoryNames,width:40
 			,changeCallback:newTransactionsCategoryChange},
 		{type:"control", editButton:false, width:10}
 	];
@@ -462,7 +467,8 @@ MyDateField.prototype = new jsGrid.Field({
 function setupJsGridCustomFields() {
 	setupJsGridInputField();
 	setupJsGridDateField();
-	setupJsGridChosenRenderField();
+	setupJsGridChosenField();
+	setupJsGridChosenViewField();
 }
 function setupJsGridInputField() {
 	jsGrid.fields.inputRender = function(config) {
@@ -536,13 +542,13 @@ function setupJsGridDateField() {
  * create-button when an item isn't found.
  * @returns {undefined}
  */
-function setupJsGridChosenRenderField() {
-	jsGrid.fields.chosenRender = function(config) {
+function setupJsGridChosenViewField() {
+	jsGrid.fields.chosenView = function(config) {
 		jsGrid.Field.call(this, config);
 	};
-	jsGrid.fields.chosenRender.prototype = new jsGrid.Field({
+	jsGrid.fields.chosenView.prototype = new jsGrid.Field({
 		//css: "input-field",            // redefine general property 'css'
-		css:"chosenRenderField",
+		css:"chosenViewField",
 		cellRenderer:function(value,item) {
 			var fieldName=this.name;
 			var grid=this._grid;
@@ -599,6 +605,60 @@ function setupJsGridChosenRenderField() {
 					}
 				}
 			}
+		}
+	});
+}
+function setupJsGridChosenField() {
+	jsGrid.fields.chosen = function(config) {
+		jsGrid.Field.call(this, config);
+	};
+	jsGrid.fields.chosen.prototype = new jsGrid.Field({
+		editTemplate: function(value) {
+			var select=document.createElement("SELECT");
+			this.editSelect=select;
+			var numSelectOptions=this.options.length;
+			for (var i=0; i<numSelectOptions; ++i) {
+				var option=document.createElement("OPTION");
+				option.text=this.options[i];
+				select.add(option);
+				select.value=value;
+			}
+			setTimeout(chosenize);//wont be correctly "chosenized" before having been added to DOM
+			return select;
+			
+			function chosenize() {
+				$(select).chosen({no_results_text:offerToCreateOption})
+				.next().css("width","100%");
+			}
+			function offerToCreateOption(searchString) {
+				var createButton=document.createElement("button");
+				createButton.innerHTML='Create "'+searchString+'"';
+				$(createButton).click(createOption);
+				return createButton;
+				function createOption() {
+					item[fieldName]=searchString;
+					var cellIndex=td.cellIndex;
+					var rowIndex=td.parentElement.rowIndex;
+					grid.fields[cellIndex].options.push({name:searchString});
+					var rows=td.parentElement.parentElement.rows;
+					var numRows=rows.length;
+					for (var i=0; i<numRows; ++i) {
+						var otherSelect=rows[i].cells[cellIndex].firstChild;
+						var option=document.createElement("OPTION");
+						option.text=searchString;
+						otherSelect.add(option);
+						if (i==rowIndex) {
+							select.value=searchString;
+						}
+						$(otherSelect).trigger("chosen:updated");
+						createOptionCallback&&createOptionCallback();
+						changeCallback&&changeCallback(item);
+					}
+				}
+			}
+		},
+		editValue:function() {
+			return this.editSelect.value;
 		}
 	});
 }
