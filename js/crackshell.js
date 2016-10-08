@@ -596,7 +596,7 @@ function setupJsGridChosenViewField() {
 					item[fieldName]=searchString;
 					var cellIndex=td.cellIndex;
 					var rowIndex=td.parentElement.rowIndex;
-					grid.fields[cellIndex].options.push({name:searchString});
+					grid.fields[cellIndex].options.push(searchString);
 					var rows=td.parentElement.parentElement.rows;
 					var numRows=rows.length;
 					for (var i=0; i<numRows; ++i) {

@@ -20,7 +20,7 @@ class Crackshell {
 				,UNIX_TIMESTAMP(addedAt)addedAt".PHP_EOL
 			."FROM transactions".PHP_EOL
 			."LEFT JOIN categories on categoryId=categories.id".PHP_EOL
-			."WHERE transactions.id>0 ORDER BY transactions.id")->fetchAll(PDO::FETCH_ASSOC);
+			."WHERE transactions.id>$sinceTransactionId ORDER BY transactions.id")->fetchAll(PDO::FETCH_ASSOC);
 		$categories=$db->query("SELECT id,name,parentId FROM categories WHERE id>$sinceCategoryId ORDER BY id")
 			->fetchAll(PDO::FETCH_ASSOC);
 		return ['transactions'=>$transactions,'categories'=>$categories];
