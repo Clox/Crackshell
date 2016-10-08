@@ -12,17 +12,18 @@
  * @author oscar
  */
 class Crackshell {
-	/**
-	 * 
-	 * @global PDO $db
-	 * @return type
-	 */
-	public function getTransactions() {
+	
+	public function getData($sinceTransactionId,$sinceCategoryId) {
 		global $db;
 		$transactions=$db->query(
-			"SELECT id,date,amount,specification,country,categoryId,UNIX_TIMESTAMP(addedAt)addedAt FROM transactions")
+			"SELECT transactions.id,date,amount,specification,country,categories.name category
+				,UNIX_TIMESTAMP(addedAt)addedAt".PHP_EOL
+			."FROM transactions".PHP_EOL
+			."LEFT JOIN categories on categoryId=categories.id".PHP_EOL
+			."WHERE transactions.id>0 ORDER BY transactions.id")->fetchAll(PDO::FETCH_ASSOC);
+		$categories=$db->query("SELECT id,name,parentId FROM categories WHERE id>$sinceCategoryId ORDER BY id")
 			->fetchAll(PDO::FETCH_ASSOC);
-		return $transactions;
+		return ['transactions'=>$transactions,'categories'=>$categories];
 	}
 	
 	public function addTransactions($transactions,$newCategories) {
@@ -59,11 +60,6 @@ class Crackshell {
 	public function deleteCategory($id) {
 		global $db;
 		$db->exec("DELETE FROM categories WHERE id=$id");
-	}
-	
-	public function getCategories() {
-		global $db;
-		return $db->query("SELECT id,name,parentId FROM categories")->fetchAll(PDO::FETCH_NAMED);
 	}
 	
 	public function editTransaction($id,$changes) {

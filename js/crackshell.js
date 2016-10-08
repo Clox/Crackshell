@@ -6,10 +6,13 @@
 
 var yesterdayString;
 var newGridRows=[];
-var categories;
-var categoriesById,categoriesByName;
-var transactions;
-var tabLoads={0:setupTransactionPage,2:setupCategoriesPage};
+var categories=[],categoriesById={},categoriesByName={};
+var transactions=[];
+var mainTabFromName={},mainTabs=[
+		mainTabFromName.transactions={index:0,load:setupTransactionPage,loaded:false},
+		mainTabFromName.newTransactions={index:1,load:null,loaded:false},
+		mainTabFromName.categories={index:2,load:setupCategoriesPage,loaded:false}
+];
 var newTransactionsGridFields;
 var updateCategoriesOnRefresh;
 var initilMainTabIndex=0;
@@ -18,27 +21,33 @@ $(init);
 function init() {
 	setupJsGridCustomFields();
 	setupMainTabs();
-	$.when(getCategories(),getTransactions()).done(dataLoaded);
+	fetchTransactions(0,0);
 	setupAddPage();
+	mainTabActivate();
+	setupNewRowsGrid();
 }
 
-function dataLoaded() {
+function fetchTransactions(sinceTransactionsId,sinceCategoryId) {
+	$.getJSON("controller.php",
+	{func:"getTransactions",sinceTransactionId:sinceTransactionsId,sinceCategoryId:sinceCategoryId}
+	,gotTransactions);
+}
+
+function gotTransactions(data) {
 	$("#mainTabs").tabs("option","disabled",false);
-	categoriesById={};
-	categoriesByName={};
-	for (var i=categories.length-1; i>=0; --i) {
-		categoriesById[categories[i].id]=categoriesByName[categories[i].name]=categories[i];
-		
+	var fetchedCategories=data.categories;
+	for (var i=0; i<fetchedCategories.length; ++i) {
+		var category=fetchedCategories[i];
+		categories.push(categoriesById[category.id]=categoriesByName[category.name]=category);
 	}
-	for (var i=transactions.length-1; i>=0; --i) {
-		var transaction=transactions[i];
-		if (transaction.categoryId) {
-			transaction.category=categoriesById[transaction.categoryId].name;
-		}
-		delete transaction.categoryId;
+	transactions=transactions.concat(data.transactions);
+	var selectedTabItem=mainTabs[$("#mainTabs").tabs("option","active")];
+	var transactionsTabItem=mainTabFromName.transactions;
+	if (selectedTabItem===transactionsTabItem) {
+		transactionsTabItem.load();
+	} else {
+		transactionsTabItem.loaded=false;
 	}
-	setupNewRowsGrid();
-	mainTabActivate();
 }
 
 function setupMainTabs() {
@@ -50,26 +59,12 @@ function setupMainTabs() {
 }
 
 function mainTabActivate(event,ui) {
-	var tabIndex=$("#mainTabs").tabs("option","active");
-	if (tabLoads[tabIndex]) {
-		tabLoads[tabIndex]();
-		delete tabLoads[tabIndex];
+	var tabData=mainTabs[$("#mainTabs").tabs("option","active")];
+	if (!tabData.loaded) {
+		if (tabData.load)
+			tabData.load();
+		tabData.loaded=true;
 	}
-}
-
-function getCategories() {
-	return $.getJSON("controller.php",{func:"getCategories"},gotCategories);
-}
-function gotCategories(data) {
-	categories=data;
-}
-
-function getTransactions() {
-	return $.getJSON("controller.php",{func:"getTransactions"},gotTransactions);
-}
-
-function gotTransactions(data) {
-	transactions=data;
 }
 
 function setupCategoriesPage() {
@@ -146,6 +141,7 @@ function setupRowsGrid(transactionRows) {
 		data:transactionRows,
 		editing: true,
         deleteConfirm: "Do you really want to delete the client?",
+		noDataContent:null,
         fields: [
             { name:"id",title: "ID", type: "number",width:10,readOnly:true},
 			{ name:"date",title: "Datum", type: "text",width:35},
@@ -252,8 +248,9 @@ function addNewRows () {
 	setupNewRowsGrid();
 }
 
-function transactionsAdded(data) {
-	
+function transactionsAdded() {
+	fetchTransactions(transactions.length?transactions[transactions.length-1].id:0
+	,categories.length?categories[categories.length-1].id:0);
 }
 
 function parseRows() {

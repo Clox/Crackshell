@@ -16,8 +16,10 @@ if (isset($_GET['func'])) {
 }
 
 function controller_get_getTransactions($vars) {
+	$sinceTransactionId=$vars['sinceTransactionId'];
+	$sinceCategoryId=$vars['sinceCategoryId'];
 	$crackshell=new Crackshell();
-	$data=$crackshell->getTransactions();
+	$data=$crackshell->getData($sinceTransactionId,$sinceCategoryId);
 	echo json_encode($data);
 }
 
@@ -28,6 +30,7 @@ function controller_post_addNewTransactions($vars) {
 	$newCategories=json_decode($vars['newCategories'],true);
 	$crackshell=new Crackshell();
 	$crackshell->addTransactions($transactions,$newCategories);
+	echo 1;
 }
 
 function controller_post_createCategory($vars) {
