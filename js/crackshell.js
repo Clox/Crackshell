@@ -224,6 +224,7 @@ function setupAddPage() {
 }
 
 function addNewRows () {
+	console.log(transactions.length);
 	var transactionsData=[];
 	var newCategories=[];
 	for (var i=newGridRows.length-1; i>=0; --i) {
@@ -330,23 +331,25 @@ function newTransactionsCategoryChange(item) {
 	if (item.category) {//don't do anything if category was set to null
 		var transactionsAlikeThis=transactionCompare(item,newGridRows);
 		for (var i=transactionsAlikeThis.length-1; i>=0; --i) {
-			suggestCategoryForNewTransaction(item.category,transactionsAlikeThis[i]);
+			transactionsAlikeThis[i].suggestedCategory=item.category;
+			suggestCategoryForNewTransaction(transactionsAlikeThis[i]);
 		}
 	}
 }
 
-function suggestCategoryForNewTransaction(category,transaction) {
-	for (var fieldI=0; newTransactionsGridFields[fieldI].name!=="category"; ++fieldI);
-	var rowI=newGridRows.indexOf(transaction);
-	var td=$("#newRowsGrid>.jsgrid-grid-body tr:nth-child("+(rowI+1)+")>td:nth-child("+(fieldI+1)+")")[0];
-	var button=document.createElement("BUTTON");
-	button.innerHTML=category;
-	td.appendChild(button);
-	$(button).click(followSuggestion);
-	function followSuggestion() {
-		$(button).remove();
-		$(td).find("select").val(category).trigger("chosen:updated");
-		transaction.category=category;
+function suggestCategoryForNewTransaction(transaction) {
+	if (transaction.suggestedCategory) {
+		for (var fieldI=0; newTransactionsGridFields[fieldI].name!=="category"; ++fieldI);
+		var rowI=newGridRows.indexOf(transaction);
+		var td=$("#newRowsGrid>.jsgrid-grid-body tr:nth-child("+(rowI+1)+")>td:nth-child("+(fieldI+1)+")")[0];
+		var button=document.createElement("BUTTON");
+		button.innerHTML=transaction.suggestedCategory;
+		td.appendChild(button);
+		$(button).click(followSuggestion);
+		function followSuggestion() {
+			$(button).remove();
+			$(td).find("select").val(transaction.category=transaction.suggestedCategory).trigger("chosen:updated");
+		}
 	}
 }
 
@@ -428,8 +431,16 @@ function setupNewRowsGrid() {
 		noDataContent:null,
 		confirmDeleting: false,
 		inserting: true,
+		onRefreshed:newTransactionsGridRefresh
     }).find(".jsgrid-insert-mode-button").click().remove();
 }
+
+function newTransactionsGridRefresh() {
+	for (var i=newGridRows.length-1; i>=0; --i) {
+		suggestCategoryForNewTransaction(newGridRows[i]);
+	}
+}
+
 function pad(n, width, z) {
   z = z || '0';
   n = n + '';
