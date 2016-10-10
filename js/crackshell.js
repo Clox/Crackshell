@@ -343,18 +343,19 @@ function suggestCategoryForNewTransaction(transaction) {
 	if (transaction.suggestedCategory) {
 		for (var fieldI=0; newTransactionsGridFields[fieldI].name!=="category"; ++fieldI);
 		var rowI=newTransactions.indexOf(transaction);
-		var td=$("#newRowsGrid>.jsgrid-grid-body tr:nth-child("+(rowI+1)+")>td:nth-child("+(fieldI+1)+")")[0];
+		var td$=$("#newRowsGrid>.jsgrid-grid-body tr:nth-child("+(rowI+1)+")>td:nth-child("+(fieldI+1)+")");
 		if (transaction.viewed) {
+			td$.find(">button").remove();
 			var button=document.createElement("BUTTON");
 			button.innerHTML=transaction.suggestedCategory;
-			td.appendChild(button);
+			td$[0].appendChild(button);
 			$(button).click(followSuggestion);
 		} else {
 			followSuggestion();
 		}
 		function followSuggestion() {
 			button&&$(button).remove();
-			$(td).find("select").val(transaction.category=transaction.suggestedCategory).trigger("chosen:updated");
+			td$.find("select").val(transaction.category=transaction.suggestedCategory).trigger("chosen:updated");
 			newTransactionsCategoryChange(transaction);
 		}
 	}
