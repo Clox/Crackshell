@@ -5,7 +5,7 @@
  */
 
 var yesterdayString;
-var newGridRows=[];
+var newTransactions=[];
 var categories=[],categoriesById={},categoriesByName={};
 var transactions=[];
 var mainTabFromName={},mainTabs=[
@@ -227,8 +227,8 @@ function addNewRows () {
 	console.log(transactions.length);
 	var transactionsData=[];
 	var newCategories=[];
-	for (var i=newGridRows.length-1; i>=0; --i) {
-		var transaction=newGridRows[i];
+	for (var i=newTransactions.length-1; i>=0; --i) {
+		var transaction=newTransactions[i];
 		var transactionData={specification:transaction.specification,amount:transaction.amount
 			,country:transaction.country,date:transaction.date};
 		if (transaction.category) {
@@ -245,7 +245,7 @@ function addNewRows () {
 	}
 	$.post("controller.php", {func:"addNewTransactions",transactions:JSON.stringify(transactionsData)
 		,newCategories:JSON.stringify(newCategories)},transactionsAdded,"json");
-	newGridRows=[];
+	newTransactions=[];
 	setupNewRowsGrid();
 }
 
@@ -258,7 +258,7 @@ function parseRows() {
 	var data=$("#parseRowsInput").val();
 	var rows=data.split("\n");
 	var numRows=rows.length;
-	newGridRows=[];
+	newTransactions=[];
 	for (var i=0; i<numRows; ++i) {
 		var cols=rows[i].split("\t");
 		var gridRow={};
@@ -266,7 +266,7 @@ function parseRows() {
 		gridRow.specification=cols[1];
 		gridRow.country=cols[3];
 		gridRow.amount=parseFloat(cols[4].replace(",","."));
-		newGridRows.push(gridRow);
+		newTransactions.push(gridRow);
 	}
 	setupNewRowsGrid();
 }
@@ -331,7 +331,7 @@ function newTransactionsCategoryChange(item) {
 	if (item.category) {//don't do anything if category was set to null
 		item.manuallyCategorized=true;
 		delete item.suggestedCategory;
-		var transactionsAlikeThis=transactionCompare(item,newGridRows);
+		var transactionsAlikeThis=transactionCompare(item,newTransactions);
 		for (var i=transactionsAlikeThis.length-1; i>=0; --i) {
 			transactionsAlikeThis[i].suggestedCategory=item.category;
 			suggestCategoryForNewTransaction(transactionsAlikeThis[i]);
@@ -342,17 +342,20 @@ function newTransactionsCategoryChange(item) {
 function suggestCategoryForNewTransaction(transaction) {
 	if (transaction.suggestedCategory) {
 		for (var fieldI=0; newTransactionsGridFields[fieldI].name!=="category"; ++fieldI);
-		var rowI=newGridRows.indexOf(transaction);
+		var rowI=newTransactions.indexOf(transaction);
 		var td=$("#newRowsGrid>.jsgrid-grid-body tr:nth-child("+(rowI+1)+")>td:nth-child("+(fieldI+1)+")")[0];
-		var button=document.createElement("BUTTON");
-		button.innerHTML=transaction.suggestedCategory;
-		td.appendChild(button);
-		$(button).click(followSuggestion);
+		if (transaction.viewed) {
+			var button=document.createElement("BUTTON");
+			button.innerHTML=transaction.suggestedCategory;
+			td.appendChild(button);
+			$(button).click(followSuggestion);
+		} else {
+			followSuggestion();
+		}
 		function followSuggestion() {
-			transaction.manuallyCategorized=true;
-			$(button).remove();
+			button&&$(button).remove();
 			$(td).find("select").val(transaction.category=transaction.suggestedCategory).trigger("chosen:updated");
-			delete transaction.suggestedCategory;
+			newTransactionsCategoryChange(transaction);
 		}
 	}
 }
@@ -405,10 +408,10 @@ function similar_text (first, second) {
 }
 
 function setupNewRowsGrid() {
-	for (var i=newGridRows.length-1; i>=0; --i) {
-		var bestMatch=transactionCompare(newGridRows[i],transactions);
+	for (var i=newTransactions.length-1; i>=0; --i) {
+		var bestMatch=transactionCompare(newTransactions[i],transactions);
 		if (bestMatch) {
-			newGridRows[i].category=bestMatch.category;
+			newTransactions[i].category=bestMatch.category;
 		}
 	}
 
@@ -429,7 +432,7 @@ function setupNewRowsGrid() {
         width: "100%",
 		height:"calc(100% - 285px)",
         sorting: true,
-		data:newGridRows,
+		data:newTransactions,
         deleteConfirm: "Do you really want to delete the client?",
         fields: newTransactionsGridFields,
 		noDataContent:null,
@@ -440,8 +443,49 @@ function setupNewRowsGrid() {
 }
 
 function newTransactionsGridRefresh() {
-	for (var i=newGridRows.length-1; i>=0; --i) {
-		suggestCategoryForNewTransaction(newGridRows[i]);
+	for (var i=newTransactions.length-1; i>=0; --i) {
+		suggestCategoryForNewTransaction(newTransactions[i]);
+	}
+	updateNewTransactionsViewedStatuses();
+	//$("#newRowsGrid>.jsgrid-grid-body").scroll(function(){console.log(1)});
+}
+
+function updateNewTransactionsViewedStatuses() {
+	var newRowsGridBody=$("#newRowsGrid>.jsgrid-grid-body").scroll(newTransactionsGridScroll)[0];
+	var scrollTop=newRowsGridBody.scrollTop;
+	var containerHeight=newRowsGridBody.offsetHeight;
+	var newGridRows=$(newRowsGridBody).find("tr");
+	var numRows=newGridRows.length;
+	var viewedEdgeIndices={};
+	for (var i=0; i<numRows; ++i) {
+		var row=newGridRows[i];
+		var rowTop=row.offsetTop;
+		var rowBottom=rowTop+row.offsetHeight;
+		var inside=rowBottom>scrollTop&&rowTop<scrollTop+containerHeight;
+		if (inside) {
+			if (!viewedEdgeIndices[-1])
+				viewedEdgeIndices[-1]=i;
+			else
+				viewedEdgeIndices[1]=i;
+			newTransactions[i].viewed=true;
+		}
+	}
+	function newTransactionsGridScroll() {
+		var signum=newRowsGridBody.scrollTop>scrollTop?1:-1;
+		var i=viewedEdgeIndices[signum];
+		scrollTop=newRowsGridBody.scrollTop;
+		while (i>0&&i<numRows-1) {
+			i+=signum;
+			var row=newGridRows[i];
+			var rowTop=row.offsetTop;
+			var rowBottom=rowTop+row.offsetHeight;
+			var inside=rowBottom>scrollTop&&rowTop<scrollTop+containerHeight;
+			if (inside) {
+				newTransactions[i].viewed=true;
+				viewedEdgeIndices[signum]=i;
+			} else
+				break;
+		}
 	}
 }
 
