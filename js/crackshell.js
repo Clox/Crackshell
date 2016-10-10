@@ -447,7 +447,8 @@ function newTransactionsGridRefresh() {
 	for (var i=newTransactions.length-1; i>=0; --i) {
 		suggestCategoryForNewTransaction(newTransactions[i]);
 	}
-	updateNewTransactionsViewedStatuses();
+	if (newTransactions.length)
+		updateNewTransactionsViewedStatuses();
 	//$("#newRowsGrid>.jsgrid-grid-body").scroll(function(){console.log(1)});
 }
 
