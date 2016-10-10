@@ -197,9 +197,9 @@ function editTransaction(id,changes) {
 }
 
 function transactionEdited(data) {
-	console.log(data);
 	if (data.newCategory) {
 		categories.push(categoriesById[data.newCategory.id]=categoriesByName[data.newCategory.name]=data.newCategory);
+		setupRowsGrid();
 	}
 }
 
@@ -408,7 +408,7 @@ function setupNewRowsGrid() {
 		}
 	}
 
-	var categoryNames=["-"];
+	var categoryNames=["<Create New>","-"];
 	for (var i=0; i<categories.length; ++i) {
 		categoryNames.push(categories[i].name);
 	}
@@ -590,45 +590,37 @@ function setupJsGridChosenViewField() {
 			return td;
 			
 			function chosenize() {
-				$(select).chosen({
-						create_option:true,on_create_option:optionCreated
-						//no_results_text:offerToCreateOption
-					}).change(onChange)
+				$(select).chosen({has_create_option:true}).change(onChange)
 				.next().css("width","100%");
 			}
 			
-			function optionCreated() {
-				
-			}
 			
 			function onChange(event,select) {
-				item[fieldName]=select.selected=='-'?null:select.selected;
-				changeCallback&&changeCallback(item);
-			}
-			function offerToCreateOption(searchString) {
-				var createButton=document.createElement("button");
-				createButton.innerHTML='Create "'+searchString+'"';
-				$(createButton).click(createOption);
-				return createButton;
+				var selected=select.selected;
+				item[fieldName]=(selected=='-'?null:selected);
+				var cellIndex=td.cellIndex;
+				if (selected) {
+					var columnOptions=grid.fields[cellIndex].options;
+					if (columnOptions.indexOf(selected)===-1) {
+						createOption();
+					}
+				}
+				changeCallback&&changeCallback(item,selected);
 				function createOption() {
-					item[fieldName]=searchString;
-					var cellIndex=td.cellIndex;
+					columnOptions.push(selected);
 					var rowIndex=td.parentElement.rowIndex;
-					grid.fields[cellIndex].options.push(searchString);
 					var rows=td.parentElement.parentElement.rows;
 					var numRows=rows.length;
 					for (var i=0; i<numRows; ++i) {
-						var otherSelect=rows[i].cells[cellIndex].firstChild;
-						var option=document.createElement("OPTION");
-						option.text=searchString;
-						otherSelect.add(option);
-						if (i==rowIndex) {
-							select.value=searchString;
+						if (i!==rowIndex) {
+							var otherSelect=rows[i].cells[cellIndex].firstChild;
+							var option=document.createElement("OPTION");
+							option.text=selected;
+							otherSelect.add(option);
+							$(otherSelect).trigger("chosen:updated");
 						}
-						$(otherSelect).trigger("chosen:updated");
-						createOptionCallback&&createOptionCallback();
-						changeCallback&&changeCallback(item);
 					}
+					createOptionCallback&&createOptionCallback(item,selected);
 				}
 			}
 		}
