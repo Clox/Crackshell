@@ -312,7 +312,7 @@ function transactionCompare(transaction,transactions) {
 				continue;
 		} else {
 			guessForTransaction=transactions[i];
-			if (guessForTransaction===otherTransaction)
+			if (guessForTransaction===otherTransaction||guessForTransaction.manuallyCategorized)
 				continue;
 		}
 		var similarity=transactionStringMatch(guessForTransaction.specification,otherTransaction.specification);
@@ -329,6 +329,8 @@ function transactionCompare(transaction,transactions) {
 
 function newTransactionsCategoryChange(item) {
 	if (item.category) {//don't do anything if category was set to null
+		item.manuallyCategorized=true;
+		delete item.suggestedCategory;
 		var transactionsAlikeThis=transactionCompare(item,newGridRows);
 		for (var i=transactionsAlikeThis.length-1; i>=0; --i) {
 			transactionsAlikeThis[i].suggestedCategory=item.category;
@@ -347,8 +349,10 @@ function suggestCategoryForNewTransaction(transaction) {
 		td.appendChild(button);
 		$(button).click(followSuggestion);
 		function followSuggestion() {
+			transaction.manuallyCategorized=true;
 			$(button).remove();
 			$(td).find("select").val(transaction.category=transaction.suggestedCategory).trigger("chosen:updated");
+			delete transaction.suggestedCategory;
 		}
 	}
 }

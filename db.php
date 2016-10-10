@@ -88,7 +88,11 @@ function getMigrations() {
 			)
 			ENGINE=InnoDB
 			DEFAULT CHARSET=utf8mb4
-			COLLATE=utf8mb4_general_ci;"
+			COLLATE=utf8mb4_general_ci;",
+			
+			"ALTER TABLE categories MODIFY COLUMN id int(11) NOT NULL AUTO_INCREMENT FIRST;",
+			
+			"ALTER TABLE transactions MODIFY COLUMN `id` int(11) NOT NULL AUTO_INCREMENT FIRST;"
 		]
 	];
 	return $migrations;
