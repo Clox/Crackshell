@@ -590,8 +590,15 @@ function setupJsGridChosenViewField() {
 			return td;
 			
 			function chosenize() {
-				$(select).chosen({no_results_text:offerToCreateOption}).change(onChange)
+				$(select).chosen({
+						create_option:true,on_create_option:optionCreated
+						//no_results_text:offerToCreateOption
+					}).change(onChange)
 				.next().css("width","100%");
+			}
+			
+			function optionCreated() {
+				
 			}
 			
 			function onChange(event,select) {
@@ -648,7 +655,10 @@ function setupJsGridChosenField() {
 			return select;
 			
 			function chosenize() {
-				$(select).chosen({no_results_text:offerToCreateOption})
+				$(select).chosen({
+					has_create_option:true,on_create_option:null
+					//no_results_text:offerToCreateOption
+					})
 				.next().css("width","100%");
 			}
 			function offerToCreateOption(searchString) {
