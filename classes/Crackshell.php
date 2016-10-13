@@ -79,4 +79,35 @@ class Crackshell {
 		$prep->execute($vals);
 		return $result;
 	}
+	
+	public function getMonthTransactions($year,$month,$aboveId=0) {
+		global $db;
+		$date="$year-$month-01";
+		$transactions=$db->query(
+			"SELECT transactions.id,`date`,amount,specification,country,categories.name category,
+				UNIX_TIMESTAMP(addedAt)addedAt".PHP_EOL
+				."FROM transactions".PHP_EOL
+				."LEFT JOIN categories on categoryId=categories.id".PHP_EOL
+			."WHERE `date` BETWEEN '$date' AND DATE_ADD('$date', INTERVAL 1 MONTH)"
+			." AND transactions.id>$aboveId ORDER BY transactions.id")->fetchALL(PDO::FETCH_ASSOC);
+		return $transactions;
+	}
+	
+	/**
+	 * 
+	 * @global PDO $db
+	 * @param type $year
+	 * @param type $month
+	 */
+	public function getMonthCategoriesSums($year,$month) {
+		global $db;
+		$date="$year-$month-01";
+		$prep=$db->prepare(
+			"SELECT SUM(amount)amount,categories.name category FROM transactions".PHP_EOL
+			."JOIN categories on categoryId=categories.id".PHP_EOL
+			."WHERE `date` BETWEEN ? AND DATE_ADD(?, INTERVAL 1 MONTH)".PHP_EOL
+			."GROUP BY categoryId,SIGN(amount)");
+		$prep->execute([$date,$date]);
+		return $prep->fetchAll(PDO::FETCH_ASSOC);
+	}
 }

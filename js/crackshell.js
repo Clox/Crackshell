@@ -8,23 +8,198 @@ var yesterdayString;
 var newTransactions=[];
 var categories=[],categoriesById={},categoriesByName={};
 var transactions=[];
+var transactionMonths={};
 var mainTabFromName={},mainTabs=[
 		mainTabFromName.transactions={index:0,load:setupTransactionPage,loaded:false},
 		mainTabFromName.newTransactions={index:1,load:null,loaded:false},
-		mainTabFromName.categories={index:2,load:setupCategoriesPage,loaded:false}
+		mainTabFromName.categories={index:2,load:setupCategoriesPage,loaded:false},
+		mainTabFromName.categories={index:3,load:setupReportsPage,loaded:false}
 ];
 var newTransactionsGridFields;
 var updateCategoriesOnRefresh;
-var initilMainTabIndex=0;
+var initialMainTabIndex=1;
+var requests={transactions:{},monthCategoriesSums:{}};
 $(init);
 
 function init() {
+	requests.categories=fetchCategories();
 	setupJsGridCustomFields();
 	setupMainTabs();
 	fetchTransactions(0,0);
 	setupAddPage();
 	mainTabActivate();
-	setupNewRowsGrid();
+	//setupNewRowsGrid();
+}
+
+function fetchCategories() {
+	$.getJSON("controller.php",{func:"getCategories"},gotCategories);
+}
+
+function gotCategories(data) {
+	categories=data;
+	var numCategories=data.length;
+	for (var i=0; i<numCategories; ++i) {
+		var category=categories[i];
+		categoriesById[category.id]=categoriesByName[category.name]=category;
+	}
+}
+
+function onMonthPickerChoose(date,a,b) {
+	var year=date.getFullYear();
+	var month=date.getMonth()+1;
+	getMonthCategoriesSums(year,month);
+}
+
+function getMonthCategoriesSums(year,month) {
+	var req,yearMonth=year+'-'+month;
+	if (req=requests.monthCategoriesSums[yearMonth]) {
+		if (req.responseJSON) {
+			plotReport(req.responseJSON);
+		}
+	} else
+		requests.monthCategoriesSums[yearMonth]=
+			$.getJSON("controller.php",{func:"getMonthCategoriesSums",year:year,month:month})
+			.done(gotMonthCategoriesSums);
+}
+
+function gotMonthCategoriesSums(data,_,request) {
+	var selectedYearMonth=$("#reportsMonthPicker").MonthPicker("GetSelectedYear")
+			+'-'+$("#reportsMonthPicker").MonthPicker("GetSelectedMonth");
+	if(request===requests.monthCategoriesSums[selectedYearMonth])
+		plotReport(data);
+}
+
+function plotReport(categories) {
+	var numCategories=categories.length;
+	var seriesData=[];
+	for (var i=0; i<numCategories; ++i) {
+		var category=categories[i];
+		var dataItem={name: category.category,y: -parseFloat(category.amount)};
+		seriesData.push(dataItem);
+	}
+	$('#piechartContainer').highcharts({
+        chart: {
+            type: 'pie'
+        },
+        title: {
+            text: ''
+        },
+        subtitle: {
+            text: ''
+        },
+        plotOptions: {
+            series: {
+                dataLabels: {
+                    enabled: true,
+                    //format: '{point.name}: {point.y:.1f}',
+					formatter:function(){
+						console.log(this);
+						return this.key+": "+this.y.toFixed(2)+":-<br>"+this.percentage.toFixed(2)+"%";
+					}
+                }
+            },
+        },
+
+        tooltip: {
+            headerFormat: '<span style="font-size:11px">{series.name}</span><br>',
+            pointFormat: '<span style="color:{point.color}">{point.name}</span>: <b>{point.y:.2f}</b><br/>',
+			formatter:function(){return "kjjkjk"}
+        },
+        series: [{
+            name: 'Categories',
+            colorByPoint: true,
+            data: seriesData,
+        }],
+        drilldown: {
+            series: [{
+                name: 'Microsoft Internet Explorer',
+                id: 'Microsoft Internet Explorer',
+                data: [
+                    ['v11.0', 24.13],
+                    ['v8.0', 17.2],
+                    ['v9.0', 8.11],
+                    ['v10.0', 5.33],
+                    ['v6.0', 1.06],
+                    ['v7.0', 0.5]
+                ]
+            }, {
+                name: 'Chrome',
+                id: 'Chrome',
+                data: [
+                    ['v40.0', 5],
+                    ['v41.0', 4.32],
+                    ['v42.0', 3.68],
+                    ['v39.0', 2.96],
+                    ['v36.0', 2.53],
+                    ['v43.0', 1.45],
+                    ['v31.0', 1.24],
+                    ['v35.0', 0.85],
+                    ['v38.0', 0.6],
+                    ['v32.0', 0.55],
+                    ['v37.0', 0.38],
+                    ['v33.0', 0.19],
+                    ['v34.0', 0.14],
+                    ['v30.0', 0.14]
+                ]
+            }, {
+                name: 'Firefox',
+                id: 'Firefox',
+                data: [
+                    ['v35', 2.76],
+                    ['v36', 2.32],
+                    ['v37', 2.31],
+                    ['v34', 1.27],
+                    ['v38', 1.02],
+                    ['v31', 0.33],
+                    ['v33', 0.22],
+                    ['v32', 0.15]
+                ]
+            }, {
+                name: 'Safari',
+                id: 'Safari',
+                data: [
+                    ['v8.0', 2.56],
+                    ['v7.1', 0.77],
+                    ['v5.1', 0.42],
+                    ['v5.0', 0.3],
+                    ['v6.1', 0.29],
+                    ['v7.0', 0.26],
+                    ['v6.2', 0.17]
+                ]
+            }, {
+                name: 'Opera',
+                id: 'Opera',
+                data: [
+                    ['v12.x', 0.34],
+                    ['v28', 0.24],
+                    ['v27', 0.17],
+                    ['v29', 0.16]
+                ]
+            }]
+        }
+    });//.css("margin","-200 auto");
+}
+
+function assignDataTo(object,property) {
+	return function(data) {
+		object[property]=data;
+	}
+}
+
+function fetchMonthTransactions(year,month,aboveId) {
+	var period=year+'-'+month;
+	return $.getJSON("controller.php",{func:"getMonthTransactions",year:year,month:month,aboveId:aboveId||0})
+			.done(gotMonthTransactions);
+	function gotMonthTransactions(data) {
+		transactionMonths[period]=data;
+		console.log("got transactions");
+	}
+}
+
+function setupReportsPage() {
+	$("#reportsMonthPicker").MonthPicker({
+        OnAfterChooseMonth: onMonthPickerChoose
+    }).find(".ui-state-highlight").click();
 }
 
 function fetchTransactions(sinceTransactionsId,sinceCategoryId) {
@@ -54,7 +229,7 @@ function setupMainTabs() {
 	$("#mainTabs").tabs({
 		activate: mainTabActivate,
 		disabled:true,
-		active:initilMainTabIndex
+		active:initialMainTabIndex
 	});
 }
 
@@ -254,21 +429,84 @@ function transactionsAdded() {
 	,categories.length?categories[categories.length-1].id:0);
 }
 
+function normalizeDateString(string) {
+	var match=/^(?:(\d\d[.-]\d\d[.-]\d\d\d\d)|(\d\d\d\d[.-]\d\d[.-]\d\d))$/.exec(string);
+	if (match) {
+		var result=string.replace('.','-');
+		if (match[1]) {
+			result=result.split('-').reverse().join('-')
+		}
+		return result;
+	}
+	return false;
+}
+
+function matchesAmountField(string) {
+	return !!string.match(/\d+[,.]\d\d/);
+}
+
+function rowStringToCells(rowString) {
+	return rowString.split(/[ \t]*\t[ \t]*/);
+}
+
+function guessColumns(rows) {
+	var row=rows[0];
+	var numCells=row.length;
+	var colGuesses=[];
+	var dateCol,specCol,amountCol;
+	for (var x=0;x<numCells;++x) {
+		var cell=row[x];
+		if (normalizeDateString(cell)) {
+			if (dateCol>=0)
+				colGuesses[dateCol]=null;
+			colGuesses[x]="date";
+			dateCol=x;
+		} else if (matchesAmountField(cell)){
+			if (amountCol===undefined) {
+				amountCol=x;
+				colGuesses[x]='amount';
+			} else
+				colGuesses[x]=null;
+		} else {
+			if (specCol===undefined) {
+				colGuesses[x]='specification';
+				specCol=x;
+			} else
+				colGuesses[x]=null;
+		}
+	}
+	return colGuesses;
+}
+
 function parseRows() {
 	var data=$("#parseRowsInput").val();
 	var rows=data.split("\n");
-	var numRows=rows.length;
-	newTransactions=[];
-	for (var i=0; i<numRows; ++i) {
-		var cols=rows[i].split("\t");
-		var gridRow={};
-		gridRow.date=parseDate(cols[0]);
-		gridRow.specification=cols[1];
-		gridRow.country=cols[3];
-		gridRow.amount=parseFloat(cols[4].replace(",","."));
-		newTransactions.push(gridRow);
+	for (var y=0; y<rows.length; ++y) {
+		if (!rows[y].length) {//remove empty row
+			rows.splice(y--,1);
+		} else
+			rows[y]=rowStringToCells(rows[y]);
 	}
-	setupNewRowsGrid();
+	var colGuesses=guessColumns(rows);
+	var numCells=colGuesses.length;
+	newTransactions=[];
+	var fieldName,fieldNames=[];
+	var unknownNum=0;
+	for (var x=0; x<numCells; ++x) {
+		var fieldName=colGuesses[x];
+		if (!fieldName)
+			fieldName="unknown"+(unknownNum++);
+		fieldNames[x]=fieldName;
+	}
+	for (var y=0; y<rows.length; ++y) {
+		row=rows[y];
+		var transaction={};
+		for (var x=0; x<numCells; ++x) {
+			transaction[fieldNames[x]]=row[x];
+		}
+		newTransactions.push(transaction);
+	}
+	setupNewRowsGrid(fieldNames);
 }
 
 function parseDate(string) {
@@ -408,7 +646,7 @@ function similar_text (first, second) {
     return sum;
 }
 
-function setupNewRowsGrid() {
+function setupNewRowsGrid(fieldNames) {
 	for (var i=newTransactions.length-1; i>=0; --i) {
 		var bestMatch=transactionCompare(newTransactions[i],transactions);
 		if (bestMatch) {
@@ -420,15 +658,24 @@ function setupNewRowsGrid() {
 	for (var i=0; i<categories.length; ++i) {
 		categoryNames.push(categories[i].name);
 	}
-	newTransactionsGridFields=[
-		{ name:"date",title: "Datum", type: "inputRender",width:25},
-		{ name:"country",title: "Land", type: "inputRender",width:40},
-		{ name: "specification", title:"Specifikation", type: "inputRender"},
-		{ name: "amount", title:"Belopp", type: "inputRender",inputType:"number",width:30},
-		{ name: "category", title:"Kategori", type: "chosenView",options:categoryNames,width:40
+	var fieldTemplates={
+		date:{ name:"date",title: "Datum", type: "inputRender",width:30},
+		country:{ name:"country",title: "Land", type: "inputRender",width:40},
+		specification:{ name: "specification", title:"Specifikation", type: "inputRender"},
+		amount:{ name: "amount", title:"Belopp", type: "inputRender",inputType:"number",width:30},
+		category:{ name: "category", title:"Kategori", type: "chosenView",options:categoryNames,width:40
 			,changeCallback:newTransactionsCategoryChange},
-		{type:"control", editButton:false, width:10}
-	];
+		control:{type:"control", editButton:false, width:10}
+	};
+	newTransactionsGridFields=[];
+	for (var i=0; i<fieldNames.length; ++i) {
+		var template=fieldTemplates[fieldNames[i]];
+		if (template)
+			newTransactionsGridFields.push(template);
+		else
+			newTransactionsGridFields.push({name:fieldNames[i],title:"Unknown"});
+	}
+	newTransactionsGridFields.push(fieldTemplates.category);
 	$("#newRowsGrid").jsGrid({
         width: "100%",
 		height:"calc(100% - 285px)",

@@ -21,4 +21,8 @@ and open the template in the editor.
   visibility: hidden;
   width: 100%;
 }
+#reportsMonthPicker {
+  position: absolute;
+  z-index: 1;
+}
 /*# sourceMappingURL=crackshell.css.map */
