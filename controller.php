@@ -2,10 +2,10 @@
 require_once './settings.php';
 if (php_sapi_name() === 'cli') {
 	//$_GET=['func'=>'getInvestments','numHoldings'=>4,'factorSettings'=>'{"weightScoreDropRate":280}'];
-	//$_POST=['func'=>'editTransaction','id'=>'8','changes'=>'{"category":"1","specification":"APOTEKET L RKAN1"}'];
+	$_POST=['func'=>'editTransaction','id'=>'8','changes'=>'{"category":"1","specification":"APOTEKET L RKAN1"}'];
 	//$_POST=['func'=>'addNewTransactions'];
 	//$_GET=['func'=>'getTransactions','sinceTransactionId'=>453,'sinceCategoryId'=>0];
-	$_GET=['func'=>'getMonthCategoriesSums','year'=>'2016','month'=>'10'];
+	//$_GET=['func'=>'getMonthCategoriesSums','year'=>'2016','month'=>'10'];
 } else {
 	set_time_limit(120);
 }
@@ -18,20 +18,16 @@ if (isset($_GET['func'])) {
 }
 
 function controller_get_getTransactions($vars) {
-	$sinceTransactionId=$vars['sinceTransactionId'];
-	$sinceCategoryId=$vars['sinceCategoryId'];
-	$crackshell=new Crackshell();
-	$data=$crackshell->getData($sinceTransactionId,$sinceCategoryId);
-	echo json_encode($data);
+	$transactions=(new Crackshell())->getTransactions();
+	echo json_encode($transactions);
 }
 
 function controller_post_addNewTransactions($vars) {
-	file_put_contents('testingdata.json', json_encode($vars));
-	$vars=  json_decode(file_get_contents('testingdata.json'),true);
 	$transactions=json_decode($vars['transactions'],true);
 	$newCategories=json_decode($vars['newCategories'],true);
+	$account=$vars['account'];
 	$crackshell=new Crackshell();
-	$crackshell->addTransactions($transactions,$newCategories);
+	$crackshell->addTransactions($transactions,$newCategories,$account);
 	echo 1;
 }
 
@@ -73,4 +69,9 @@ function controller_get_getMonthCategoriesSums($vars) {
 	$month=$vars['month'];
 	$crackshell=new Crackshell();
 	echo json_encode($crackshell->getMonthCategoriesSums($year, $month));
+}
+
+function controller_get_getAccounts() {
+	$accounts=(new Crackshell())->getAccounts();
+	echo json_encode($accounts);
 }

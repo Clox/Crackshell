@@ -36,7 +36,7 @@ function migrate($dbVersion) {
 
 function getMigrations() {
 	$migrations=[
-		'0.0.1'=> [
+		'1.0.0'=> [
 			"CREATE TABLE transactions (
 				`date` DATE NULL,
 				amount DECIMAL NULL,
@@ -94,7 +94,23 @@ function getMigrations() {
 			
 			"ALTER TABLE transactions MODIFY COLUMN `id` int(11) NOT NULL AUTO_INCREMENT FIRST;",
 			
-			"ALTER TABLE transactions CHANGE country location varchar(100) NULL;"
+			"ALTER TABLE transactions CHANGE country location varchar(100) NULL;",
+			
+			"CREATE TABLE accounts (
+				id int NOT NULL AUTO_INCREMENT,
+				name varchar(100) NULL,
+				CONSTRAINT accounts_PK PRIMARY KEY (id)
+			)
+			ENGINE=InnoDB
+			DEFAULT CHARSET=utf8mb4
+			COLLATE=utf8mb4_general_ci;",
+			
+			"DROP TABLE Links;",
+			
+			"CREATE INDEX accounts_name_IDX ON accounts (name);",
+			
+			"ALTER TABLE transactions ADD accountId INT NULL;
+			ALTER TABLE transactions ADD CONSTRAINT transactions_accounts_FK FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE RESTRICT ON UPDATE RESTRICT;"
 		]
 	];
 	return $migrations;

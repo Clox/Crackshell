@@ -35,4 +35,7 @@ and open the template in the editor.
   position: absolute;
   bottom: 20px;
 }
+#importTransactionsAccountSelect {
+  min-width: 150px;
+}
 /*# sourceMappingURL=crackshell.css.map */

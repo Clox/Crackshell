@@ -6,39 +6,67 @@
 
 var yesterdayString;
 var newTransactions=[];
-var categories=[],categoriesById={},categoriesByName={};
+var categories,categoriesByName={},categoriesById={};
+var accounts,accountsByName={},accountsById={};
 var transactions=[];
 var transactionMonths={};
 var mainTabFromName={},mainTabs=[
 		mainTabFromName.transactions={index:0,load:setupTransactionPage,loaded:false},
 		mainTabFromName.import={index:1,load:setupImportTab,loaded:false},
 		mainTabFromName.categories={index:2,load:setupCategoriesPage,loaded:false},
-		mainTabFromName.categories={index:3,load:setupReportsPage,loaded:false}
+		mainTabFromName.reports={index:3,load:setupReportsPage,loaded:false}
 ];
 var newTransactionsGridFields;
 var updateCategoriesOnRefresh;
-var initialMainTabIndex=1;
-var requests={transactions:{},monthCategoriesSums:{}};
+var initialMainTabIndex=0;
 var activeImportTranactionsPage;
 var colAssignments;//Used when assigning columns in imported data to transaction-fields
 $(init);
 
 function init() {
-	requests.categories=fetchCategories();
 	setupJsGridCustomFields();
 	setupMainTabs();
-	fetchTransactions(0,0);
-	//setupAddPage();
-	mainTabActivate();
+	//fetchTransactions(0,0);
+	fetchBaseData().done(gotBaseData);
 	//setupNewRowsGrid();
 }
 
+function gotBaseData() {
+	$("#mainTabs").tabs("option","disabled",false);
+	mainTabActivate();
+	var numCategories=categories.length;
+	for (var i=0; i<numCategories; ++i) {
+		var category=categories[i];
+		categoriesByName[category.name]=categoriesById[category.id]=category;
+	}
+	var numAccounts=accounts.length;
+	for (var i=0; i<numAccounts; ++i) {
+		var account=accounts[i];
+		accountsByName[account.name]=accountsById[account.id]=account;
+	}
+}
+
 function setupImportTab() {
-	var importTransactionPages$=$("#importTransactionsPages");
 	$("#importTransactionsPages>.firstPage>button.textParsing").click(textParsingButtonClick);
 	setActiveImportPage("firstPage");
 	$("#parseRowsButton").click(parseRows);
-	$("#addNewRowsButton").click(importTransactionsContinueToCategorize);
+	$("#importTransactionsContinueToCategorizeButton").click(importTransactionsContinueToCategorize);
+	$("#importTransactionsCommitButton").click(importTransactionsCommit);
+}
+
+function setupAccountSelect(target) {
+	var select=$(target)[0];
+	var option=document.createElement("OPTION");
+	option.innerHTML="-";
+	select.add(option);
+	for (var i=0; i<accounts.length; ++i) {
+		option=document.createElement("OPTION");
+		var account=accounts[i];
+		option.value=account.id;
+		option.innerHTML=account.name;
+		select.add(option);
+	}
+	$(target).chosen({has_create_option:true});
 }
 
 function setActiveImportPage(pageName) {
@@ -61,6 +89,7 @@ function importTransactionsContinueToCategorize() {
 		}
 	}
 	setActiveImportPage("categorize");
+	setupAccountSelect($("#importTransactionsAccountSelect"));
 	setupImportTransactionsCategorizeGrid();
 }
 
@@ -70,19 +99,6 @@ function cancelImportClick() {
 
 function textParsingButtonClick() {
 	setActiveImportPage("textParsing");
-}
-
-function fetchCategories() {
-	$.getJSON("controller.php",{func:"getCategories"},gotCategories);
-}
-
-function gotCategories(data) {
-	categories=data;
-	var numCategories=data.length;
-	for (var i=0; i<numCategories; ++i) {
-		var category=categories[i];
-		categoriesById[category.id]=categoriesByName[category.name]=category;
-	}
 }
 
 function onMonthPickerChoose(date,a,b) {
@@ -242,28 +258,20 @@ function setupReportsPage() {
         OnAfterChooseMonth: onMonthPickerChoose
     }).find(".ui-state-highlight").click();
 }
-
-function fetchTransactions(sinceTransactionsId,sinceCategoryId) {
-	$.getJSON("controller.php",
-	{func:"getTransactions",sinceTransactionId:sinceTransactionsId,sinceCategoryId:sinceCategoryId}
-	,gotTransactions);
+function fetchBaseData() {
+	return $.when(fetchCategories(),fetchAccounts());
 }
 
-function gotTransactions(data) {
-	$("#mainTabs").tabs("option","disabled",false);
-	var fetchedCategories=data.categories;
-	for (var i=0; i<fetchedCategories.length; ++i) {
-		var category=fetchedCategories[i];
-		categories.push(categoriesById[category.id]=categoriesByName[category.name]=category);
-	}
-	transactions=transactions.concat(data.transactions);
-	var selectedTabItem=mainTabs[$("#mainTabs").tabs("option","active")];
-	var transactionsTabItem=mainTabFromName.transactions;
-	if (selectedTabItem===transactionsTabItem) {
-		transactionsTabItem.load();
-	} else {
-		transactionsTabItem.loaded=false;
-	}
+function fetchCategories() {
+	return $.getJSON("controller.php",{func:"getCategories"},assignDataTo(window,"categories"));
+}
+
+function fetchAccounts() {
+	return $.getJSON("controller.php",{func:"getAccounts"},assignDataTo(window,"accounts"));
+}
+
+function fetchTransactions() {
+	return $.getJSON("controller.php",{func:"getTransactions"},assignDataTo(window,"transactions"));
 }
 
 function setupMainTabs() {
@@ -317,38 +325,44 @@ function categoryInserted(event) {
 	var name=event.item.name;
 	var promise=$.post("controller.php", {func:"createCategory",name:name},categoryCreated,"json");
 	promise.customData={item:event.item};
-	promise.done=setupRowsGrid;
+	promise.done=setupTransactionsGrid;
 	
 	function categoryCreated(data,message,promise) {
 		$("#categoriesGrid").jsGrid("updateItem", promise.customData.item,{ id: data.id});
-		setupRowsGrid();
+		setupTransactionsGrid();
 	}
 }
 
 function setupTransactionPage() {
-	setupRowsGrid(transactions);
-	return;
-	transactionRows=[];
-	var numRows=transactions.length;
-	for (var i=0; i<numRows; ++i) {
-		var rowData=transactions[i];
-		var row={};
-		row.id=rowData.id;
-		row.date=rowData.date;
-		row.categoryId=rowData.categoryId;
-		row.specification=rowData.specification;
-		row.amount=rowData.amount;
-		row.country=rowData.country;
-		row.addedAt=timestampToString(rowData.addedAt);
-		transactionRows.push(row);
-	}
-	setupRowsGrid(transactionRows);
+	fetchTransactions().done(gotTransactions);
 }
 
-function setupRowsGrid(transactionRows) {
-	var categoryNames=["-"];
+function gotTransactions() {
+	for (var i=transactions.length-1; i>=0; --i) {
+		var category=categoriesById[transactions[i].categoryId];
+		if (category) {
+			transactions[i].categoryName=category.name;
+			delete transactions[i].categoryId;
+		}
+	}
+	for (var i=transactions.length-1; i>=0; --i) {
+		var account=accountsById[transactions[i].accountId];
+		if (account) {
+			transactions[i].accountName=account.name;
+			delete transactions[i].accountId;
+		}
+	}
+	setupTransactionsGrid(transactions);
+}
+
+function setupTransactionsGrid(transactionRows) {
+	var categoryOptions=["<Create New>","-"];
 	for (var i=0; i<categories.length; ++i) {
-		categoryNames.push(categories[i].name);
+		categoryOptions.push(categories[i].name);
+	}
+	var accountNames=["-"];
+	for (var i=0; i<accounts.length; ++i) {
+		accountNames.push(accounts[i].name);
 	}
 	$("#viewGrid").jsGrid({
         height: "90%",
@@ -361,10 +375,11 @@ function setupRowsGrid(transactionRows) {
         fields: [
             { name:"id",title: "ID", type: "number",width:10,readOnly:true},
 			{ name:"date",title: "Datum", type: "text",width:35},
-			{ name:"category",title: "Kategori", type: "chosen",options:categoryNames,textField:'name'
-				,valueField:'id',width:30,valueType:"string"},
+			{ name:"categoryName",title: "Kategori", type: "chosen",options:categoryOptions
+				,width:30,valueType:"string"},
             { name: "specification", title:"Specifikation", type: "text"},
 			{ name: "amount", title:"Belopp", type: "number",width:25,editValue:jsGridDecimalEdit},
+			{name:"accountName",title:"Konto",type:"chosen",options:accountNames,width:30},
 			{ name: "addedAt", title:"Tillagd", type: "text",width:45},
 			{
                 type: "control",
@@ -388,13 +403,19 @@ function transactionEdit(event) {
 	var change=false;
 	for (var field in newItem) {
 		if (newItem.hasOwnProperty(field)) {
-			if (newItem[field]!==oldItem[field]) {
+			if (newItem[field]!=oldItem[field]) {
 				if (field==="category") {
 					var category=categoriesByName[newItem[field]];
 					if (category)
 						changes.categoryId=category.id;
 					else
 						changes.categoryName=newItem[field];
+				} else if (field==="account") {
+					var account=accountsByName[newItem[field]];
+					if (account)
+						changes.accountId=account.id;
+					else
+						changes.accountName=newItem[field];
 				} else {
 					changes[field]=newItem[field];
 				}
@@ -413,10 +434,11 @@ function editTransaction(id,changes) {
 }
 
 function transactionEdited(data) {
-	if (data.newCategory) {
-		categories.push(categoriesById[data.newCategory.id]=categoriesByName[data.newCategory.name]=data.newCategory);
-		setupRowsGrid();
-	}
+	if (data.newCategory)
+		categories.push(categoriesByName[data.newCategory.name]=categoriesById[data.newCategory.id]=data.newCategory);
+	if (data.newAccount)
+		accounts.push(accountsByName[data.newAccount.name]=accountsById[data.newAccount.id]=data.newAccount);
+	setupTransactionsGrid();
 }
 
 function timestampToString(timestamp,time) {
@@ -434,18 +456,17 @@ function timestampToString(timestamp,time) {
 		formattedTime+=' '+hours + ':' + minutes.substr(-2);
 	return (formattedTime);
 }
-function setupAddPage() {
-	$("#parseRowsButton").click(parseRows);
-	$("#addNewRowsButton").click(addNewRows);
-}
 
-function addNewRows () {
+function importTransactionsCommit () {
+	var account=$("#importTransactionsAccountSelect")[0].selectedOptions[0].innerHTML;
+	if (account==="-")
+		account=null;
 	var transactionsData=[];
 	var newCategories=[];
 	for (var i=newTransactions.length-1; i>=0; --i) {
 		var transaction=newTransactions[i];
 		var transactionData={specification:transaction.specification,amount:transaction.amount
-			,country:transaction.country,date:transaction.date};
+			,location:transaction.location||null,date:transaction.date};
 		if (transaction.category) {
 			var category=categoriesByName[transaction.category];
 			if (category) {
@@ -458,15 +479,14 @@ function addNewRows () {
 		}
 		transactionsData.push(transactionData);
 	}
-	$.post("controller.php", {func:"addNewTransactions",transactions:JSON.stringify(transactionsData)
+	$.post("controller.php", {func:"addNewTransactions",account:account,transactions:JSON.stringify(transactionsData)
 		,newCategories:JSON.stringify(newCategories)},transactionsAdded,"json");
 	newTransactions=[];
-	setupNewRowsGrid();
+	setActiveImportPage("firstPage");
 }
 
 function transactionsAdded() {
-	fetchTransactions(transactions.length?transactions[transactions.length-1].id:0
-	,categories.length?categories[categories.length-1].id:0);
+	fetchTransactions().done(gotTransactions);
 }
 
 function normalizeDateString(string) {
@@ -539,7 +559,7 @@ function parseRows() {
 		}
 		colAssignments=guessColumns(newTransactions);
 		setupParseTransactionsGrid();
-		$("#addNewRowsButton")[0].disabled=false;
+		$("#importTransactionsContinueToCategorizeButton")[0].disabled=false;
 	}
 }
 
@@ -689,7 +709,7 @@ function setupParseTransactionsGrid() {
 	
 	var fieldTemplates={
 		date:{ name:"date",title: "Datum",width:45},
-		location:{ name:"country",title: "Land",width:45},
+		location:{ name:"location",title: "Land",width:45},
 		specification:{ name: "specification", title:"Specifikation"},
 		amount:{ name: "amount", title:"Belopp",inputType:"number",width:45}
 	};
@@ -804,7 +824,7 @@ function setupImportTransactionsCategorizeGrid() {
 	}
 	var fieldTemplates={
 		date:{ name:"date",title: "Datum", type: "inputRender",width:30},
-		location:{ name:"country",title: "Plats", type: "inputRender",width:40},
+		location:{ name:"location",title: "Plats", type: "inputRender",width:40},
 		specification:{ name: "specification", title:"Specifikation", type: "inputRender"},
 		amount:{ name: "amount", title:"Belopp", type: "inputRender",inputType:"number",width:30},
 		category:{ name: "category", title:"Kategori", type: "chosenView",options:categoryNames,width:40
@@ -1077,10 +1097,8 @@ function setupJsGridChosenField() {
 				var option=document.createElement("OPTION");
 				option.text=this.options[i];
 				select.add(option);
-				if (value==null)
-					value="-";
-				select.value=value;
 			}
+			select.value='-';
 			setTimeout(chosenize);//wont be correctly "chosenized" before having been added to DOM
 			return select;
 			
@@ -1091,20 +1109,12 @@ function setupJsGridChosenField() {
 					})
 				.next().css("width","100%");
 			}
-			function offerToCreateOption(searchString) {
-				var createButton=document.createElement("button");
-				createButton.innerHTML='Create "'+searchString+'"';
-				$(createButton).click(createOption);
-				return createButton;
-				function createOption() {
-					var option=document.createElement("OPTION");
-					option.text=searchString;
-					$(select).append(option).val(searchString).trigger("chosen:updated");
-				}
-			}
 		},
 		editValue:function() {
-			return this.editSelect.value;
+			var value=this.editSelect.value;
+			if (value=='-')
+				return null;
+			return value;
 		}
 	});
 }

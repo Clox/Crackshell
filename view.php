@@ -54,14 +54,15 @@
 					<div id="parseTransactionsGrid"></div>
 					<div class="bottomButtons">
 						<button class="cancel">Cancel</button>
-						<button id="addNewRowsButton" disabled="true">Continue</button>
+						<button id="importTransactionsContinueToCategorizeButton" disabled="true">Continue</button>
 					</div>
 				</div>
 				<div class="page categorize"><!--transaction categorize page-->
+					Account: <select id="importTransactionsAccountSelect"></select><br><br>
 					<div id="categorizeTransactionsGrid"></div>
 					<div class="bottomButtons">
 						<button class="cancel">Cancel</button>
-						<button id="commitNewTransactions">Commit</button>
+						<button id="importTransactionsCommitButton">Commit</button>
 					</div>
 				</div>
 			</div>
