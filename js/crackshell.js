@@ -11,7 +11,7 @@ var transactions=[];
 var transactionMonths={};
 var mainTabFromName={},mainTabs=[
 		mainTabFromName.transactions={index:0,load:setupTransactionPage,loaded:false},
-		mainTabFromName.newTransactions={index:1,load:null,loaded:false},
+		mainTabFromName.import={index:1,load:setupImportTab,loaded:false},
 		mainTabFromName.categories={index:2,load:setupCategoriesPage,loaded:false},
 		mainTabFromName.categories={index:3,load:setupReportsPage,loaded:false}
 ];
@@ -19,6 +19,8 @@ var newTransactionsGridFields;
 var updateCategoriesOnRefresh;
 var initialMainTabIndex=1;
 var requests={transactions:{},monthCategoriesSums:{}};
+var activeImportTranactionsPage;
+var colAssignments;//Used when assigning columns in imported data to transaction-fields
 $(init);
 
 function init() {
@@ -26,9 +28,48 @@ function init() {
 	setupJsGridCustomFields();
 	setupMainTabs();
 	fetchTransactions(0,0);
-	setupAddPage();
+	//setupAddPage();
 	mainTabActivate();
 	//setupNewRowsGrid();
+}
+
+function setupImportTab() {
+	var importTransactionPages$=$("#importTransactionsPages");
+	$("#importTransactionsPages>.firstPage>button.textParsing").click(textParsingButtonClick);
+	setActiveImportPage("firstPage");
+	$("#parseRowsButton").click(parseRows);
+	$("#addNewRowsButton").click(importTransactionsContinueToCategorize);
+}
+
+function setActiveImportPage(pageName) {
+	if (activeImportTranactionsPage)
+		$("#importTransactionsPages").find(">."+activeImportTranactionsPage).css("display","none")
+	$("#importTransactionsPages").find(">."+pageName).css("display","block")
+	.find(" .bottomButtons>.cancel").click(cancelImportClick);
+	activeImportTranactionsPage=pageName;
+}
+
+function importTransactionsContinueToCategorize() {
+	var transaction,i=0;
+	while (transaction=newTransactions[i++]) {
+		for (var colAssignmentIndex=colAssignments.length-1; colAssignmentIndex>=0; --colAssignmentIndex) {
+			var colAssignment=colAssignments[colAssignmentIndex];
+			if (colAssignment) {
+				transaction[colAssignment]=transaction[colAssignmentIndex];
+			}
+			delete transaction[colAssignmentIndex];
+		}
+	}
+	setActiveImportPage("categorize");
+	setupImportTransactionsCategorizeGrid();
+}
+
+function cancelImportClick() {
+	setActiveImportPage("firstPage");
+}
+
+function textParsingButtonClick() {
+	setActiveImportPage("textParsing");
 }
 
 function fetchCategories() {
@@ -399,7 +440,6 @@ function setupAddPage() {
 }
 
 function addNewRows () {
-	console.log(transactions.length);
 	var transactionsData=[];
 	var newCategories=[];
 	for (var i=newTransactions.length-1; i>=0; --i) {
@@ -446,67 +486,61 @@ function matchesAmountField(string) {
 }
 
 function rowStringToCells(rowString) {
-	return rowString.split(/[ \t]*\t[ \t]*/);
+	var rowArray=rowString.split(/[ \t]*\t[ \t]*/);
+	var rowObject={};
+	for (var i=rowArray.length-1; i>=0; --i)
+		rowObject[i]=rowArray[i];
+	return rowObject;
 }
 
 function guessColumns(rows) {
 	var row=rows[0];
-	var numCells=row.length;
 	var colGuesses=[];
 	var dateCol,specCol,amountCol;
-	for (var x=0;x<numCells;++x) {
-		var cell=row[x];
-		if (normalizeDateString(cell)) {
-			if (dateCol>=0)
-				colGuesses[dateCol]=null;
-			colGuesses[x]="date";
-			dateCol=x;
-		} else if (matchesAmountField(cell)){
-			if (amountCol===undefined) {
-				amountCol=x;
-				colGuesses[x]='amount';
-			} else
-				colGuesses[x]=null;
-		} else {
-			if (specCol===undefined) {
-				colGuesses[x]='specification';
-				specCol=x;
-			} else
-				colGuesses[x]=null;
+	for (var x in row) {
+		if (row.hasOwnProperty(x)) {
+			var cell=row[x];
+			if (normalizeDateString(cell)) {
+				if (dateCol>=0)
+					colGuesses[dateCol]=null;
+				colGuesses[x]="date";
+				dateCol=x;
+			} else if (matchesAmountField(cell)){
+				if (amountCol===undefined) {
+					amountCol=x;
+					colGuesses[x]='amount';
+				} else
+					colGuesses[x]=null;
+			} else {
+				if (specCol===undefined) {
+					colGuesses[x]='specification';
+					specCol=x;
+				} else
+					colGuesses[x]=null;
+			}
 		}
 	}
 	return colGuesses;
 }
 
+
+/**Parses the transaction-data which the user has parsed into the text-area.
+ * @returns {undefined}
+ */
 function parseRows() {
 	var data=$("#parseRowsInput").val();
-	var rows=data.split("\n");
-	for (var y=0; y<rows.length; ++y) {
-		if (!rows[y].length) {//remove empty row
-			rows.splice(y--,1);
-		} else
-			rows[y]=rowStringToCells(rows[y]);
-	}
-	var colGuesses=guessColumns(rows);
-	var numCells=colGuesses.length;
-	newTransactions=[];
-	var fieldName,fieldNames=[];
-	var unknownNum=0;
-	for (var x=0; x<numCells; ++x) {
-		var fieldName=colGuesses[x];
-		if (!fieldName)
-			fieldName="unknown"+(unknownNum++);
-		fieldNames[x]=fieldName;
-	}
-	for (var y=0; y<rows.length; ++y) {
-		row=rows[y];
-		var transaction={};
-		for (var x=0; x<numCells; ++x) {
-			transaction[fieldNames[x]]=row[x];
+	newTransactions=data.split("\n");
+	if (newTransactions.length) {
+		for (var y=0; y<newTransactions.length; ++y) {
+			if (!newTransactions[y].length) {//remove empty row
+				newTransactions.splice(y--,1);
+			} else
+				newTransactions[y]=rowStringToCells(newTransactions[y]);
 		}
-		newTransactions.push(transaction);
+		colAssignments=guessColumns(newTransactions);
+		setupParseTransactionsGrid();
+		$("#addNewRowsButton")[0].disabled=false;
 	}
-	setupNewRowsGrid(fieldNames);
 }
 
 function parseDate(string) {
@@ -581,7 +615,7 @@ function suggestCategoryForNewTransaction(transaction) {
 	if (transaction.suggestedCategory) {
 		for (var fieldI=0; newTransactionsGridFields[fieldI].name!=="category"; ++fieldI);
 		var rowI=newTransactions.indexOf(transaction);
-		var td$=$("#newRowsGrid>.jsgrid-grid-body tr:nth-child("+(rowI+1)+")>td:nth-child("+(fieldI+1)+")");
+		var td$=$("#parseTransactionsGrid>.jsgrid-grid-body tr:nth-child("+(rowI+1)+")>td:nth-child("+(fieldI+1)+")");
 		if (transaction.viewed) {
 			td$.find(">button").remove();
 			var button=document.createElement("BUTTON");
@@ -646,7 +680,117 @@ function similar_text (first, second) {
     return sum;
 }
 
-function setupNewRowsGrid(fieldNames) {
+/**After the transactions-text have been parsed this function is called which then populates the grid with the parsed
+ * data. This grid may have columns that have been identified incorrectly, and also some that the user want to ignore.
+ * So the grid should provide the appropriate controls for that.
+ * @returns {undefined}*/
+function setupParseTransactionsGrid() {
+	var categoryNames=["<Create New>","-"];
+	
+	var fieldTemplates={
+		date:{ name:"date",title: "Datum",width:45},
+		location:{ name:"country",title: "Land",width:45},
+		specification:{ name: "specification", title:"Specifikation"},
+		amount:{ name: "amount", title:"Belopp",inputType:"number",width:45}
+	};
+	var fields=[];
+	var field;
+	for (var i=0; i<colAssignments.length; ++i) {
+		var colGuess=colAssignments[i];
+		if (colGuess) {
+			field=fieldTemplates[colGuess];
+		} else {
+			field={title:"Ignored"};
+		}
+		field.title="Column "+(i+1)+"<br>";
+		
+		//Needs to be a string otherwise jsgrid.js will generate an error by trying to call split() on it
+		field.name=i.toString();
+		
+		fields[i]=field;
+	}
+	
+	$("#parseTransactionsGrid").jsGrid({
+        width: "100%",
+		height:"calc(100% - 265px)",
+        sorting: true,
+		data:newTransactions,
+        fields: fields,
+		noDataContent:null,
+		confirmDeleting: false,
+		inserting: false,
+		onRefreshing:importTransactionsColAssignGridCreateFieldSelectors
+		,onRefreshed:importTransactionsColAssignGridRefreshed
+    });
+	var gridBody=$("#parseTransactionsGrid>.jsgrid-grid-body")[0];
+	
+	//When the select-elements are added to the TH-elements, they expand
+	//gridBody.style.height=parseInt(gridBody.style.height)-20;
+	
+	//importTransactionsColAssignGridCreateFieldSelectors();
+}
+
+/**Creates the select-elements for the header-cells in the "Import Transasctions Column Assignment Grid"
+ * @returns {undefined}*/
+function importTransactionsColAssignGridCreateFieldSelectors() {
+	var headerCells=$("#parseTransactionsGrid>.jsgrid-grid-header th");
+	if (!headerCells.find("SELECT").length) {
+		var transactionFieldHeaders=[{text:'-',value:null},{text:'Date',value:'date'},
+			{text:'Specification',value:'specification'},{text:'Amount',value:'amount'}
+			,{text:'Location',value:'location'}];
+		for (var columnI=0; columnI<headerCells.length; ++columnI) {
+			var headerCell=headerCells[columnI];
+			var select=document.createElement("SELECT");
+			for (var headerI=0; headerI<transactionFieldHeaders.length; ++headerI) {
+				var option=document.createElement("OPTION");
+				var transactionFieldHeader=transactionFieldHeaders[headerI];
+				option.innerHTML=transactionFieldHeader.text;
+				option.value=transactionFieldHeader.value;
+				select.add(option);
+				select.value=colAssignments[columnI];
+			}
+			$(select).change(onImportTransactionsColAssignGridSelectChange)
+					.click(stopPropagation);//so that the column isn't sorted when changing column-field
+			headerCell.appendChild(select);
+		}
+	}
+}
+function stopPropagation(e) {
+	e.stopPropagation();
+}
+
+function onImportTransactionsColAssignGridSelectChange(e) {
+	var newVal=this.value;
+	var indexOfOldColumnWithThisValue=colAssignments.indexOf(newVal);
+	if (indexOfOldColumnWithThisValue!==-1) {
+		colAssignments[indexOfOldColumnWithThisValue]=null;
+		importTransactionsColAssignGridRefreshed(indexOfOldColumnWithThisValue);
+		var ths=$("#parseTransactionsGrid>.jsgrid-grid-header th");
+		$(ths[indexOfOldColumnWithThisValue]).find("SELECT").val('null');
+	}
+	colAssignments[this.parentElement.cellIndex]=this.value;
+	importTransactionsColAssignGridRefreshed(this.parentElement.cellIndex);
+}
+
+function importTransactionsColAssignGridRefreshed(columnIndex) {
+	var gridBody$=$("#parseTransactionsGrid>.jsgrid-grid-body");
+	var numColumns,i;
+	if (columnIndex>=0) {
+		i=columnIndex;
+	} else {
+		i=0;
+		numColumns=colAssignments.length;
+	}
+	do{
+		var columnCells$=gridBody$.find(" td:nth-child("+(i+1)+")");
+		if (colAssignments[i]===null||colAssignments[i]==='null')
+			columnCells$.addClass("unknownColumn");
+		else
+			columnCells$.removeClass("unknownColumn");
+	} while(i++<numColumns);
+}
+
+function setupImportTransactionsCategorizeGrid() {
 	for (var i=newTransactions.length-1; i>=0; --i) {
 		var bestMatch=transactionCompare(newTransactions[i],transactions);
 		if (bestMatch) {
@@ -660,23 +804,20 @@ function setupNewRowsGrid(fieldNames) {
 	}
 	var fieldTemplates={
 		date:{ name:"date",title: "Datum", type: "inputRender",width:30},
-		country:{ name:"country",title: "Land", type: "inputRender",width:40},
+		location:{ name:"country",title: "Plats", type: "inputRender",width:40},
 		specification:{ name: "specification", title:"Specifikation", type: "inputRender"},
 		amount:{ name: "amount", title:"Belopp", type: "inputRender",inputType:"number",width:30},
 		category:{ name: "category", title:"Kategori", type: "chosenView",options:categoryNames,width:40
 			,changeCallback:newTransactionsCategoryChange},
 		control:{type:"control", editButton:false, width:10}
 	};
+	var fieldNames=["date","location","specification","amount","category","control"];
 	newTransactionsGridFields=[];
 	for (var i=0; i<fieldNames.length; ++i) {
 		var template=fieldTemplates[fieldNames[i]];
-		if (template)
-			newTransactionsGridFields.push(template);
-		else
-			newTransactionsGridFields.push({name:fieldNames[i],title:"Unknown"});
+		newTransactionsGridFields.push(template);
 	}
-	newTransactionsGridFields.push(fieldTemplates.category);
-	$("#newRowsGrid").jsGrid({
+	$("#categorizeTransactionsGrid").jsGrid({
         width: "100%",
 		height:"calc(100% - 285px)",
         sorting: true,
@@ -696,11 +837,11 @@ function newTransactionsGridRefresh() {
 	}
 	if (newTransactions.length)
 		updateNewTransactionsViewedStatuses();
-	//$("#newRowsGrid>.jsgrid-grid-body").scroll(function(){console.log(1)});
+	//$("#parseTransactionsGrid>.jsgrid-grid-body").scroll(function(){console.log(1)});
 }
 
 function updateNewTransactionsViewedStatuses() {
-	var newRowsGridBody=$("#newRowsGrid>.jsgrid-grid-body").scroll(newTransactionsGridScroll)[0];
+	var newRowsGridBody=$("#parseTransactionsGrid>.jsgrid-grid-body").scroll(newTransactionsGridScroll)[0];
 	var scrollTop=newRowsGridBody.scrollTop;
 	var containerHeight=newRowsGridBody.offsetHeight;
 	var newGridRows=$(newRowsGridBody).find("tr");
@@ -801,7 +942,7 @@ function setupJsGridInputField() {
 			var td=document.createElement("TD");
 			var input=document.createElement("input");
 			td.appendChild(input);
-			input.value=value;
+			input.value=value||"";
 			$(input).change(inputFieldOnChange);
 			var grid=this._grid;
 			return td;

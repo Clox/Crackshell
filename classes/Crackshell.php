@@ -16,7 +16,7 @@ class Crackshell {
 	public function getData($sinceTransactionId,$sinceCategoryId) {
 		global $db;
 		$transactions=$db->query(
-			"SELECT transactions.id,date,amount,specification,country,categories.name category
+			"SELECT transactions.id,date,amount,specification,location,categories.name category
 				,UNIX_TIMESTAMP(addedAt)addedAt".PHP_EOL
 			."FROM transactions".PHP_EOL
 			."LEFT JOIN categories on categoryId=categories.id".PHP_EOL

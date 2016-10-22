@@ -42,17 +42,34 @@
 		<div id="mainTabs-1">
 			<div id="viewGrid"></div>
 		</div>
-		<div id="mainTabs-2">
-			<textarea id="parseRowsInput"></textarea>
-			<button id="parseRowsButton">Parse</button>
-			<hr>
-			<div id="newRowsGrid"></div>
-			<button id="addNewRowsButton">Add</button>
+		<div id="mainTabs-2"><!--import tab-->
+			<div id="importTransactionsPages"><!--import pages-->
+				<div class="page firstPage"><!--type of import selection page-->
+					<button class="textParsing">Parse Text</button>
+				</div>
+				<div class="page textParsing"><!--text parsing page-->
+					<textarea id="parseRowsInput"></textarea>
+					<button id="parseRowsButton">Parse</button>
+					<hr>
+					<div id="parseTransactionsGrid"></div>
+					<div class="bottomButtons">
+						<button class="cancel">Cancel</button>
+						<button id="addNewRowsButton" disabled="true">Continue</button>
+					</div>
+				</div>
+				<div class="page categorize"><!--transaction categorize page-->
+					<div id="categorizeTransactionsGrid"></div>
+					<div class="bottomButtons">
+						<button class="cancel">Cancel</button>
+						<button id="commitNewTransactions">Commit</button>
+					</div>
+				</div>
+			</div>
 		</div>
 		<div id="mainTabs-3">
 			<div id="categoriesGrid"></div>
 		</div>
-		<div id="mainTabs-4"><!--reports-->
+		<div id="mainTabs-4"><!--reports tab-->
 			<div id="reportsMonthPicker"></div>
 			<div id="piechartContainer" style="min-width: 310px; max-width: 1000px; height: 700px; margin: 0 auto"></div>
 		</div>

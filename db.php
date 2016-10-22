@@ -77,10 +77,10 @@ function getMigrations() {
 			"ALTER TABLE transactions MODIFY COLUMN id int(11) NOT NULL AUTO_INCREMENT;
 			ALTER TABLE transactions ADD CONSTRAINT transactions_PK PRIMARY KEY (id);",
 			
-			"ALTER TABLE crackshell.transactions ADD categoryId INT NULL;
-			ALTER TABLE crackshell.transactions ADD CONSTRAINT transactions_categories_FK FOREIGN KEY (categoryId) REFERENCES crackshell.categories(id) ON DELETE RESTRICT ON UPDATE RESTRICT;",
+			"ALTER TABLE transactions ADD categoryId INT NULL;
+			ALTER TABLE transactions ADD CONSTRAINT transactions_categories_FK FOREIGN KEY (categoryId) REFERENCES categories(id) ON DELETE RESTRICT ON UPDATE RESTRICT;",
 			
-			"CREATE TABLE crackshell.Links (
+			"CREATE TABLE Links (
 				id INT NULL AUTO_INCREMENT,
 				regex VARCHAR(100) NULL,
 				orderNumber INT NULL,
@@ -92,7 +92,9 @@ function getMigrations() {
 			
 			"ALTER TABLE categories MODIFY COLUMN id int(11) NOT NULL AUTO_INCREMENT FIRST;",
 			
-			"ALTER TABLE transactions MODIFY COLUMN `id` int(11) NOT NULL AUTO_INCREMENT FIRST;"
+			"ALTER TABLE transactions MODIFY COLUMN `id` int(11) NOT NULL AUTO_INCREMENT FIRST;",
+			
+			"ALTER TABLE transactions CHANGE country location varchar(100) NULL;"
 		]
 	];
 	return $migrations;
