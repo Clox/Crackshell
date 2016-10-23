@@ -150,7 +150,6 @@ function plotReport(categories) {
                     enabled: true,
                     //format: '{point.name}: {point.y:.1f}',
 					formatter:function(){
-						console.log(this);
 						return this.key+": "+this.y.toFixed(2)+":-<br>"+this.percentage.toFixed(2)+"%";
 					}
                 }
@@ -249,7 +248,6 @@ function fetchMonthTransactions(year,month,aboveId) {
 			.done(gotMonthTransactions);
 	function gotMonthTransactions(data) {
 		transactionMonths[period]=data;
-		console.log("got transactions");
 	}
 }
 
@@ -341,7 +339,7 @@ function gotTransactions() {
 	for (var i=transactions.length-1; i>=0; --i) {
 		var category=categoriesById[transactions[i].categoryId];
 		if (category) {
-			transactions[i].categoryName=category.name;
+			transactions[i].category=category.name;
 			delete transactions[i].categoryId;
 		}
 	}
@@ -375,7 +373,7 @@ function setupTransactionsGrid(transactionRows) {
         fields: [
             { name:"id",title: "ID", type: "number",width:10,readOnly:true},
 			{ name:"date",title: "Datum", type: "text",width:35},
-			{ name:"categoryName",title: "Kategori", type: "chosen",options:categoryOptions
+			{ name:"category",title: "Kategori", type: "chosen",options:categoryOptions
 				,width:30,valueType:"string"},
             { name: "specification", title:"Specifikation", type: "text"},
 			{ name: "amount", title:"Belopp", type: "number",width:25,editValue:jsGridDecimalEdit},
@@ -469,13 +467,8 @@ function importTransactionsCommit () {
 			,location:transaction.location||null,date:transaction.date};
 		if (transaction.category) {
 			var category=categoriesByName[transaction.category];
-			if (category) {
-				transactionData.categoryId=category.id;
-			} else {
-				transactionData.categoryName=transaction.category;
-				if (-1===newCategories.indexOf(transaction.category))
+			if (-1===newCategories.indexOf(transaction.category))
 					newCategories.push(transaction.category);
-			}
 		}
 		transactionsData.push(transactionData);
 	}
@@ -609,6 +602,7 @@ function transactionCompare(transaction,transactions) {
 		}
 		var similarity=transactionStringMatch(guessForTransaction.specification,otherTransaction.specification);
 		if (similarity>.4&&(!guessForTransaction.highestSimilarity||similarity>guessForTransaction.highestSimilarity)) {
+			var hit=true;
 			guessForTransaction.highestSimilarity=similarity;
 			if (guessForTheSingle)
 				result=otherTransaction;
@@ -635,7 +629,7 @@ function suggestCategoryForNewTransaction(transaction) {
 	if (transaction.suggestedCategory) {
 		for (var fieldI=0; newTransactionsGridFields[fieldI].name!=="category"; ++fieldI);
 		var rowI=newTransactions.indexOf(transaction);
-		var td$=$("#parseTransactionsGrid>.jsgrid-grid-body tr:nth-child("+(rowI+1)+")>td:nth-child("+(fieldI+1)+")");
+		var td$=$("#categorizeTransactionsGrid>.jsgrid-grid-body tr:nth-child("+(rowI+1)+")>td:nth-child("+(fieldI+1)+")");
 		if (transaction.viewed) {
 			td$.find(">button").remove();
 			var button=document.createElement("BUTTON");
@@ -643,12 +637,15 @@ function suggestCategoryForNewTransaction(transaction) {
 			td$[0].appendChild(button);
 			$(button).click(followSuggestion);
 		} else {
-			followSuggestion();
+			setCategoryToSuggested();
 		}
 		function followSuggestion() {
 			button&&$(button).remove();
-			td$.find("select").val(transaction.category=transaction.suggestedCategory).trigger("chosen:updated");
+			setCategoryToSuggested();
 			newTransactionsCategoryChange(transaction);
+		}
+		function setCategoryToSuggested() {
+			td$.find("select").val(transaction.category=transaction.suggestedCategory).trigger("chosen:updated");
 		}
 	}
 }
@@ -846,9 +843,14 @@ function setupImportTransactionsCategorizeGrid() {
         fields: newTransactionsGridFields,
 		noDataContent:null,
 		confirmDeleting: false,
-		inserting: true,
-		onRefreshed:newTransactionsGridRefresh
-    }).find(".jsgrid-insert-mode-button").click().remove();
+		inserting: true
+    })
+	
+	//if settiing onRefreshed directly in the constructor and then programmatically clicking and removing the
+	//insert-row-button then the refreshed-function will be called twice. So it's done like this instead.
+	.find(".jsgrid-insert-mode-button").click().end()
+	.jsGrid("option", "onRefreshed", newTransactionsGridRefresh)
+	.find(".jsgrid-insert-mode-button").remove();
 }
 
 function newTransactionsGridRefresh() {
@@ -857,11 +859,10 @@ function newTransactionsGridRefresh() {
 	}
 	if (newTransactions.length)
 		updateNewTransactionsViewedStatuses();
-	//$("#parseTransactionsGrid>.jsgrid-grid-body").scroll(function(){console.log(1)});
 }
 
 function updateNewTransactionsViewedStatuses() {
-	var newRowsGridBody=$("#parseTransactionsGrid>.jsgrid-grid-body").scroll(newTransactionsGridScroll)[0];
+	var newRowsGridBody=$("#categorizeTransactionsGrid>.jsgrid-grid-body").scroll(newTransactionsGridScroll)[0];
 	var scrollTop=newRowsGridBody.scrollTop;
 	var containerHeight=newRowsGridBody.offsetHeight;
 	var newGridRows=$(newRowsGridBody).find("tr");
@@ -872,6 +873,7 @@ function updateNewTransactionsViewedStatuses() {
 		var rowTop=row.offsetTop;
 		var rowBottom=rowTop+row.offsetHeight;
 		var inside=rowBottom>scrollTop&&rowTop<scrollTop+containerHeight;
+		
 		if (inside) {
 			if (!viewedEdgeIndices[-1])
 				viewedEdgeIndices[-1]=i;
