@@ -51,7 +51,8 @@ function setupImportTab() {
 	$("#importCsvButton").click(csvParsingButtonClick);
 	setActiveImportPage("firstPage");
 	$("#parseRowsButton").click(parseRows);
-	$("#importTransactionsContinueToCategorizeButton").click(importTransactionsContinueToCategorize);
+	$("#importTransactionsPages .importTransactionsContinueToCategorizeButton")
+			.click(importTransactionsContinueToCategorize);
 	$("#importTransactionsCommitButton").click(importTransactionsCommit);
 	
 	$("#importTransactionsCsvFileInput").change(importTransactionsCsvFileInputChange);
@@ -596,7 +597,7 @@ function handleParsedTransactions() {
 	colAssignments=guessColumns(newTransactions);
 	setupParseTransactionsGrid();
 	$("#importTransactionsPages>."+activeImportTranactionsPage+" .importTransactionsContinueToCategorizeButton")[0]
-		.disabled=false;
+			.disabled=false;
 }
 
 function parseDate(string) {

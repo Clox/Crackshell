@@ -25,7 +25,7 @@ and open the template in the editor.
   position: absolute;
   z-index: 1;
 }
-#parseTransactionsGrid .unknownColumn.jsgrid-cell {
+#importTransactionsPages .grid .unknownColumn.jsgrid-cell {
   background-color: #bbbbbb;
 }
 #importTransactionsPages > div {
