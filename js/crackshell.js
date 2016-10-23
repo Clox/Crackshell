@@ -368,7 +368,8 @@ function setupTransactionsGrid(transactionRows) {
         sorting: true,
 		data:transactionRows,
 		editing: true,
-        deleteConfirm: "Do you really want to delete the client?",
+        deleteConfirm: "Delete this transaction?",
+		onItemDeleting:transactionsGridDeleteItem,
 		noDataContent:null,
         fields: [
             { name:"id",title: "ID", type: "number",width:10,readOnly:true},
@@ -388,6 +389,10 @@ function setupTransactionsGrid(transactionRows) {
         ],
 		onItemUpdated:transactionEdit
     });
+}
+
+function transactionsGridDeleteItem(args) {
+	return $.post("controller.php", {func:"deleteTransaction",transactionId:args.item.id}, null,"json");	
 }
 
 function jsGridDecimalEdit() {
@@ -844,7 +849,7 @@ function setupImportTransactionsCategorizeGrid() {
 		height:"calc(100% - 285px)",
         sorting: true,
 		data:newTransactions,
-        deleteConfirm: "Do you really want to delete the client?",
+        deleteConfirm: "Delete this transaction?",
         fields: newTransactionsGridFields,
 		noDataContent:null,
 		confirmDeleting: false,

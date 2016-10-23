@@ -175,4 +175,9 @@ class Crackshell {
 		$accounts=$db->query("SELECT id,name FROM accounts")->fetchAll(PDO::FETCH_ASSOC);
 		return $accounts;
 	}
+	
+	public function deleteTransaction($transactionId) {
+		global $db;
+		return $db->exec("DELETE FROM transactions WHERE id=$transactionId");
+	}
 }

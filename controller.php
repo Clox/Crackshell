@@ -48,6 +48,11 @@ function controller_post_deleteCategory($vars) {
 	(new Crackshell)->deleteCategory($categoryId);
 }
 
+function controller_post_deleteTransaction($vars) {
+	$transactionId=$vars['transactionId'];
+	return (new Crackshell())->deleteTransaction($transactionId);
+}
+
 function controller_post_editTransaction($vars) {
 	$transactionId=$vars['id'];
 	$changes=json_decode($vars['changes'],true);
