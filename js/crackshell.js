@@ -467,8 +467,13 @@ function importTransactionsCommit () {
 			,location:transaction.location||null,date:transaction.date};
 		if (transaction.category) {
 			var category=categoriesByName[transaction.category];
-			if (-1===newCategories.indexOf(transaction.category))
+			if (category) {
+				transactionData.categoryId=category.id;
+			} else {
+				if (-1===newCategories.indexOf(transaction.category))
 					newCategories.push(transaction.category);
+				transactionData.categoryName=transaction.category;
+			}		
 		}
 		transactionsData.push(transactionData);
 	}
