@@ -18,7 +18,7 @@ var mainTabFromName={},mainTabs=[
 ];
 var newTransactionsGridFields;
 var updateCategoriesOnRefresh;
-var initialMainTabIndex=0;
+var initialMainTabIndex=1;
 var activeImportTranactionsPage;
 var colAssignments;//Used when assigning columns in imported data to transaction-fields
 $(init);
@@ -48,10 +48,32 @@ function gotBaseData() {
 
 function setupImportTab() {
 	$("#importTransactionsPages>.firstPage>button.textParsing").click(textParsingButtonClick);
+	$("#importCsvButton").click(csvParsingButtonClick);
 	setActiveImportPage("firstPage");
 	$("#parseRowsButton").click(parseRows);
 	$("#importTransactionsContinueToCategorizeButton").click(importTransactionsContinueToCategorize);
 	$("#importTransactionsCommitButton").click(importTransactionsCommit);
+	
+	$("#importTransactionsCsvFileInput").change(importTransactionsCsvFileInputChange);
+}
+
+function importTransactionsCsvFileInputChange() {
+	var reader = new FileReader();
+	reader.onload=importTransactionsCsvFileLoaded;
+	reader.readAsText(this.files[0],'ISO-8859-1');
+}
+
+function importTransactionsCsvFileLoaded() {
+	var csvContent=this.result;
+	newTransactions=csvContent.split("\r\n");
+	var numRows=newTransactions.length;
+	for (var y=0; y<numRows; ++y) {
+		var cells=newTransactions[y]=newTransactions[y].split(';');
+		for (var x=0; x<cells.length; ++x) {
+			cells[x]=cells[x].slice(1,-1);
+		}
+	}
+	handleParsedTransactions();
 }
 
 function setupAccountSelect(target) {
@@ -99,6 +121,10 @@ function cancelImportClick() {
 
 function textParsingButtonClick() {
 	setActiveImportPage("textParsing");
+}
+
+function csvParsingButtonClick() {
+	setActiveImportPage("csvParsing");
 }
 
 function onMonthPickerChoose(date,a,b) {
@@ -562,10 +588,15 @@ function parseRows() {
 			} else
 				newTransactions[y]=rowStringToCells(newTransactions[y]);
 		}
-		colAssignments=guessColumns(newTransactions);
-		setupParseTransactionsGrid();
-		$("#importTransactionsContinueToCategorizeButton")[0].disabled=false;
+		handleParsedTransactions();
 	}
+}
+
+function handleParsedTransactions() {
+	colAssignments=guessColumns(newTransactions);
+	setupParseTransactionsGrid();
+	$("#importTransactionsPages>."+activeImportTranactionsPage+" .importTransactionsContinueToCategorizeButton")[0]
+		.disabled=false;
 }
 
 function parseDate(string) {
@@ -609,7 +640,8 @@ function transactionCompare(transaction,transactions) {
 				continue;
 		} else {
 			guessForTransaction=transactions[i];
-			if (guessForTransaction===otherTransaction||guessForTransaction.manuallyCategorized)
+			if (guessForTransaction===otherTransaction||guessForTransaction.manuallyCategorized
+					||guessForTransaction.category===otherTransaction.category)
 				continue;
 		}
 		var similarity=transactionStringMatch(guessForTransaction.specification,otherTransaction.specification);
@@ -739,7 +771,7 @@ function setupParseTransactionsGrid() {
 		fields[i]=field;
 	}
 	
-	$("#parseTransactionsGrid").jsGrid({
+	$("#importTransactionsPages>."+activeImportTranactionsPage+">.grid").jsGrid({
         width: "100%",
 		height:"calc(100% - 265px)",
         sorting: true,
@@ -751,7 +783,6 @@ function setupParseTransactionsGrid() {
 		onRefreshing:importTransactionsColAssignGridCreateFieldSelectors
 		,onRefreshed:importTransactionsColAssignGridRefreshed
     });
-	var gridBody=$("#parseTransactionsGrid>.jsgrid-grid-body")[0];
 	
 	//When the select-elements are added to the TH-elements, they expand
 	//gridBody.style.height=parseInt(gridBody.style.height)-20;
@@ -762,7 +793,7 @@ function setupParseTransactionsGrid() {
 /**Creates the select-elements for the header-cells in the "Import Transasctions Column Assignment Grid"
  * @returns {undefined}*/
 function importTransactionsColAssignGridCreateFieldSelectors() {
-	var headerCells=$("#parseTransactionsGrid>.jsgrid-grid-header th");
+	var headerCells=$("#importTransactionsPages>."+activeImportTranactionsPage+">.grid>.jsgrid-grid-header th");
 	if (!headerCells.find("SELECT").length) {
 		var transactionFieldHeaders=[{text:'-',value:null},{text:'Date',value:'date'},
 			{text:'Specification',value:'specification'},{text:'Amount',value:'amount'}
@@ -794,7 +825,7 @@ function onImportTransactionsColAssignGridSelectChange(e) {
 	if (indexOfOldColumnWithThisValue!==-1) {
 		colAssignments[indexOfOldColumnWithThisValue]=null;
 		importTransactionsColAssignGridRefreshed(indexOfOldColumnWithThisValue);
-		var ths=$("#parseTransactionsGrid>.jsgrid-grid-header th");
+		var ths=$("#importTransactionsPages>."+activeImportTranactionsPage+">.grid>.jsgrid-grid-header th");
 		$(ths[indexOfOldColumnWithThisValue]).find("SELECT").val('null');
 	}
 	colAssignments[this.parentElement.cellIndex]=this.value;
@@ -802,7 +833,7 @@ function onImportTransactionsColAssignGridSelectChange(e) {
 }
 
 function importTransactionsColAssignGridRefreshed(columnIndex) {
-	var gridBody$=$("#parseTransactionsGrid>.jsgrid-grid-body");
+	var gridBody$=$("#importTransactionsPages>."+activeImportTranactionsPage+">.grid>.jsgrid-grid-body");
 	var numColumns,i;
 	if (columnIndex>=0) {
 		i=columnIndex;

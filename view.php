@@ -46,15 +46,26 @@
 			<div id="importTransactionsPages"><!--import pages-->
 				<div class="page firstPage"><!--type of import selection page-->
 					<button class="textParsing">Parse Text</button>
+					<br><br>
+					<button id="importCsvButton">Load CSV File</button>
 				</div>
 				<div class="page textParsing"><!--text parsing page-->
 					<textarea id="parseRowsInput"></textarea>
 					<button id="parseRowsButton">Parse</button>
 					<hr>
-					<div id="parseTransactionsGrid"></div>
+					<div class="grid"></div>
 					<div class="bottomButtons">
 						<button class="cancel">Cancel</button>
-						<button id="importTransactionsContinueToCategorizeButton" disabled="true">Continue</button>
+						<button class="importTransactionsContinueToCategorizeButton" disabled="true">Continue</button>
+					</div>
+				</div>
+				<div class="page csvParsing"><!--CSV parsing page-->
+					<input id="importTransactionsCsvFileInput" type="file">
+					<hr>
+					<div class="grid"></div>
+					<div class="bottomButtons">
+						<button class="cancel">Cancel</button>
+						<button class="importTransactionsContinueToCategorizeButton" disabled="true">Continue</button>
 					</div>
 				</div>
 				<div class="page categorize"><!--transaction categorize page-->
