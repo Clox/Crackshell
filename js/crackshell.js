@@ -486,6 +486,8 @@ function importTransactionsCommit () {
 		,newCategories:JSON.stringify(newCategories)},transactionsAdded,"json");
 	newTransactions=[];
 	setActiveImportPage("firstPage");
+	alert ("New transactions have been added.");
+	mainTabFromName.transactions.loaded=false;
 }
 
 function transactionsAdded() {
