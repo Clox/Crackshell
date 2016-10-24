@@ -504,7 +504,7 @@ function importTransactionsCommit () {
 		for (var i=newTransactions.length-1; i>=0; --i) {
 			var transaction=newTransactions[i];
 			var transactionData={specification:transaction.specification,amount:transaction.amount
-				,location:transaction.location||null,date:transaction.date};
+				,location:transaction.location||null,date:transaction.date,type:transaction.type||null};
 			if (transaction.category) {
 				var category=categoriesByName[transaction.category];
 				if (category) {
@@ -835,7 +835,7 @@ function importTransactionsColAssignGridCreateFieldSelectors() {
 	if (!headerCells.find("SELECT").length) {
 		var transactionFieldHeaders=[{text:'-',value:null},{text:'Date',value:'date'},
 			{text:'Specification',value:'specification'},{text:'Amount',value:'amount'}
-			,{text:'Location',value:'location'}];
+			,{text:'Location',value:'location'},{text:'Type',value:'type'}];
 		for (var columnI=0; columnI<headerCells.length; ++columnI) {
 			var headerCell=headerCells[columnI];
 			var select=document.createElement("SELECT");

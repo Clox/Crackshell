@@ -110,7 +110,9 @@ function getMigrations() {
 			"CREATE INDEX accounts_name_IDX ON accounts (name);",
 			
 			"ALTER TABLE transactions ADD accountId INT NULL;
-			ALTER TABLE transactions ADD CONSTRAINT transactions_accounts_FK FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE RESTRICT ON UPDATE RESTRICT;"
+			ALTER TABLE transactions ADD CONSTRAINT transactions_accounts_FK FOREIGN KEY (accountId) REFERENCES accounts(id) ON DELETE RESTRICT ON UPDATE RESTRICT;",
+			
+			"ALTER TABLE transactions ADD `type` varchar(100) NULL;"
 		]
 	];
 	return $migrations;

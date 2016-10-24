@@ -69,6 +69,7 @@ class Crackshell {
 			$values[]=$transac['amount'];
 			$values[]=$transac['specification'];
 			$values[]=$transac['location'];
+			$values[]=$transac['type'];
 			if (isset($transac['categoryId'])) {
 				$values[]=$transac['categoryId'];
 			} else if (isset($transac['categoryName'])) {
@@ -78,9 +79,10 @@ class Crackshell {
 			}
 			$values[]=$accountId;
 		}
-		$placeHolders_imploded=implode(',',array_fill(0,count($transactions),'(?,?,?,?,?,?)'));
+		$placeHolders_imploded=implode(',',array_fill(0,count($transactions),'(?,?,?,?,?,?,?)'));
 		$prepared=$db->prepare
-			("INSERT INTO transactions (date,amount,specification,location,categoryId,accountId) VALUES $placeHolders_imploded");
+			("INSERT INTO transactions (date,amount,specification,location,type,categoryId,accountId)".PHP_EOL
+			."VALUES $placeHolders_imploded");
 		$prepared->execute($values);
 	}
 	
