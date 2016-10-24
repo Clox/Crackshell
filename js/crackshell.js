@@ -110,7 +110,10 @@ function importTransactionsContinueToCategorize() {
 		for (var colAssignmentIndex=colAssignments.length-1; colAssignmentIndex>=0; --colAssignmentIndex) {
 			var colAssignment=colAssignments[colAssignmentIndex];
 			if (colAssignment) {
-				transaction[colAssignment]=transaction[colAssignmentIndex];
+				var value=transaction[colAssignmentIndex];
+				if (colAssignment=='date')
+					value=normalizeDateString(value);
+				transaction[colAssignment]=value;
 			}
 			delete transaction[colAssignmentIndex];
 		}
@@ -550,15 +553,14 @@ function transactionsAdded() {
 }
 
 function normalizeDateString(string) {
-	var match=/^(?:(\d\d[.-]\d\d[.-]\d\d\d\d)|(\d\d\d\d[.-]\d\d[.-]\d\d))$/.exec(string);
-	if (match) {
-		var result=string.replace('.','-');
-		if (match[1]) {
-			result=result.split('-').reverse().join('-')
-		}
-		return result;
-	}
-	return false;
+	var string=string.replace(/\./g,'-');
+	var match=/^(?:(\d\d[-]\d\d[-]\d\d\d\d)|(\d\d\d\d[-]\d\d[-]\d\d))$/.exec(string);
+	if (!match)
+		return false;
+	if (match[1])
+		return match[1].split('-').reverse().join('-')
+	if (match[2])
+		return match[2];
 }
 
 function matchesAmountField(string) {
@@ -669,8 +671,7 @@ function transactionCompare(transaction,transactions) {
 				continue;
 		} else {
 			guessForTransaction=transactions[i];
-			if (guessForTransaction===otherTransaction||guessForTransaction.manuallyCategorized
-					||guessForTransaction.category===otherTransaction.category)
+			if (guessForTransaction===otherTransaction||guessForTransaction.manuallyCategorized)
 				continue;
 		}
 		var similarity=transactionStringMatch(guessForTransaction.specification,otherTransaction.specification);
@@ -692,8 +693,10 @@ function newTransactionsCategoryChange(item) {
 		delete item.suggestedCategory;
 		var transactionsAlikeThis=transactionCompare(item,newTransactions);
 		for (var i=transactionsAlikeThis.length-1; i>=0; --i) {
-			transactionsAlikeThis[i].suggestedCategory=item.category;
-			suggestCategoryForNewTransaction(transactionsAlikeThis[i]);
+			if (transactionsAlikeThis[i].category!==item.category) {
+				transactionsAlikeThis[i].suggestedCategory=item.category;
+				suggestCategoryForNewTransaction(transactionsAlikeThis[i]);
+			}
 		}
 	}
 }
