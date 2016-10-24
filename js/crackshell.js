@@ -553,14 +553,19 @@ function transactionsAdded() {
 }
 
 function normalizeDateString(string) {
-	var string=string.replace(/\./g,'-');
-	var match=/^(?:(\d\d[-]\d\d[-]\d\d\d\d)|(\d\d\d\d[-]\d\d[-]\d\d))$/.exec(string);
-	if (!match)
-		return false;
-	if (match[1])
-		return match[1].split('-').reverse().join('-')
-	if (match[2])
-		return match[2];
+	var match;
+	string=string.replace(/\./g,'-');
+	match=/^(?:(\d\d[-]\d\d[-]\d\d\d\d)|(\d\d\d\d[-]\d\d[-]\d\d))$/.exec(string);
+	if (match) {
+		if (match[1])
+			return match[1].split('-').reverse().join('-')
+		if (match[2])
+			return match[2];
+	}
+	if (/^\d\d[-]\d\d[-]\d\d$/.exec(string)) {
+		return ("20"+string).split('-').reverse().join('-');
+	}
+	return false;
 }
 
 function matchesAmountField(string) {
@@ -568,7 +573,7 @@ function matchesAmountField(string) {
 }
 
 function rowStringToCells(rowString) {
-	var rowArray=rowString.split(/(?:\t \t)|\t/);
+	var rowArray=rowString.split(/\s*(?:(?:\t \t)|\t)\s*/);
 	var rowObject={};
 	for (var i=rowArray.length-1; i>=0; --i)
 		rowObject[i]=rowArray[i];
