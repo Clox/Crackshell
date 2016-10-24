@@ -722,6 +722,7 @@ function suggestCategoryForNewTransaction(transaction) {
 		}
 		function setCategoryToSuggested() {
 			td$.find("select").val(transaction.category=transaction.suggestedCategory).trigger("chosen:updated");
+			delete transaction.suggestedCategory;
 		}
 	}
 }
