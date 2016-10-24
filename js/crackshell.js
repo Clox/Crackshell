@@ -578,10 +578,11 @@ function normalizeNumberString(string) {
 }
 
 function rowStringToCells(rowString) {
-	var rowArray=rowString.split(/\s*(?:(?:\t \t)|\t)\s*/);
+	var rowArray=rowString.split(/(?:\t \t)|\t/); 
+	
 	var rowObject={};
 	for (var i=rowArray.length-1; i>=0; --i)
-		rowObject[i]=rowArray[i];
+		rowObject[i]=rowArray[i].trim();
 	return rowObject;
 }
 
