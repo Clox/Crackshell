@@ -66,12 +66,16 @@ function importTransactionsCsvFileInputChange() {
 
 function importTransactionsCsvFileLoaded() {
 	var csvContent=this.result;
-	newTransactions=csvContent.split("\r\n");
-	var numRows=newTransactions.length;
+	newTransactions=[];
+	var rows=csvContent.split("\r\n");
+	var numRows=rows.length;
 	for (var y=0; y<numRows; ++y) {
-		var cells=newTransactions[y]=newTransactions[y].split(';');
+		var cells=rows[y].split(';');
 		for (var x=0; x<cells.length; ++x) {
 			cells[x]=cells[x].slice(1,-1);
+		}
+		if (cells.length>1) {
+			newTransactions.push(cells);
 		}
 	}
 	handleParsedTransactions();
@@ -491,30 +495,54 @@ function importTransactionsCommit () {
 	var account=$("#importTransactionsAccountSelect")[0].selectedOptions[0].innerHTML;
 	if (account==="-")
 		account=null;
-	var transactionsData=[];
-	var newCategories=[];
-	for (var i=newTransactions.length-1; i>=0; --i) {
-		var transaction=newTransactions[i];
-		var transactionData={specification:transaction.specification,amount:transaction.amount
-			,location:transaction.location||null,date:transaction.date};
-		if (transaction.category) {
-			var category=categoriesByName[transaction.category];
-			if (category) {
-				transactionData.categoryId=category.id;
-			} else {
-				if (-1===newCategories.indexOf(transaction.category))
-					newCategories.push(transaction.category);
-				transactionData.categoryName=transaction.category;
-			}		
+	if (account||confirm("Are you sure you want to commit these transactions without an account set?")) {
+		var transactionsData=[];
+		var newCategories=[];
+		for (var i=newTransactions.length-1; i>=0; --i) {
+			var transaction=newTransactions[i];
+			var transactionData={specification:transaction.specification,amount:transaction.amount
+				,location:transaction.location||null,date:transaction.date};
+			if (transaction.category) {
+				var category=categoriesByName[transaction.category];
+				if (category) {
+					transactionData.categoryId=category.id;
+				} else {
+					if (-1===newCategories.indexOf(transaction.category))
+						newCategories.push(transaction.category);
+					transactionData.categoryName=transaction.category;
+				}		
+			}
+			transactionsData.push(transactionData);
 		}
-		transactionsData.push(transactionData);
+		$.post("controller.php", {func:"addNewTransactions",account:account,transactions:JSON.stringify(transactionsData)
+			,newCategories:JSON.stringify(newCategories)},transactionsAdded,"json");
+		newTransactions=[];
+		setActiveImportPage("firstPage");
+		alert ("New transactions have been added.");
+		mainTabFromName.transactions.loaded=false;
+	} else {
+		flashElement("#importTransactionsAccountSelect_chosen");
 	}
-	$.post("controller.php", {func:"addNewTransactions",account:account,transactions:JSON.stringify(transactionsData)
-		,newCategories:JSON.stringify(newCategories)},transactionsAdded,"json");
-	newTransactions=[];
-	setActiveImportPage("firstPage");
-	alert ("New transactions have been added.");
-	mainTabFromName.transactions.loaded=false;
+}
+
+/**Flashes the outline of an element
+ * @param {HTMLElement|string|jquery} element The element to be flashed.
+ *		Can be an element, a jquery-object or a selector-string.
+ * @param {int} repeat Times to repeat the flash, default 5.
+ * @param {int} interval Interval between each flash in milliseconds, default 100.
+ * @returns {HTMLElement|string|jquery} What was passed to the element-parameter.*/
+function flashElement(element,repeat,interval) {
+	repeat=repeat||6;
+	interval=interval||100;
+	var repetition=0;
+	var on=false;
+	flash();
+	function flash() {
+		$(element).css("outline",(on=!on)?"2px solid red":"");
+		if ((repetition+=.5)<repeat)
+			setTimeout(flash,interval);
+	}
+	return element;
 }
 
 function transactionsAdded() {
