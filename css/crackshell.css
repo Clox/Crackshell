@@ -14,6 +14,23 @@ and open the template in the editor.
 #mainTabs {
   height: calc(100% - 10px);
 }
+#mainTabs-4 {
+  right: 0;
+  bottom: 0;
+  position: absolute;
+  top: 44;
+  left: 0;
+}
+#reportsSidebar {
+  border-right: 6px groove #ddd;
+  width: 225;
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background-color: #dedede;
+  padding: 10px 5px;
+}
 .jsgrid-cell.input-field > input {
   width: 100%;
 }
@@ -22,8 +39,14 @@ and open the template in the editor.
   width: 100%;
 }
 #reportsMonthPicker {
+  zoom: 95%;
+}
+#reportPageBody {
   position: absolute;
-  z-index: 1;
+  right: 0;
+  left: 250px;
+  top: 0;
+  bottom: 0;
 }
 #importTransactionsPages .grid .unknownColumn.jsgrid-cell {
   background-color: #bbbbbb;

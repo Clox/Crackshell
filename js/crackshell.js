@@ -18,7 +18,7 @@ var mainTabFromName={},mainTabs=[
 ];
 var newTransactionsGridFields;
 var updateCategoriesOnRefresh;
-var initialMainTabIndex=1;
+var initialMainTabIndex=0;
 var activeImportTranactionsPage;
 var colAssignments;//Used when assigning columns in imported data to transaction-fields
 $(init);
@@ -144,32 +144,36 @@ function onMonthPickerChoose(date,a,b) {
 }
 
 function getMonthCategoriesSums(year,month) {
-	var req,yearMonth=year+'-'+month;
-	if (req=requests.monthCategoriesSums[yearMonth]) {
-		if (req.responseJSON) {
-			plotReport(req.responseJSON);
+	var numTransactions=transactions.length;
+	var expenses={};
+	var income={};
+	for (var i=0; i<numTransactions; ++i) {
+		var transaction=transactions[i];
+		var date=transaction.date.split('-');
+		if (date[0]==year&&date[1]==month) {
+			var categories=transaction.amount>0?income:expenses;
+			var category=categories[transaction.category];
+			if (!category) {
+				category=categories[transaction.category]={total:0,transactions:[],name:transaction.category};
+			}
+			category.total+=transaction.amount;
+			category.transactions.push(transaction);
 		}
-	} else
-		requests.monthCategoriesSums[yearMonth]=
-			$.getJSON("controller.php",{func:"getMonthCategoriesSums",year:year,month:month})
-			.done(gotMonthCategoriesSums);
-}
-
-function gotMonthCategoriesSums(data,_,request) {
-	var selectedYearMonth=$("#reportsMonthPicker").MonthPicker("GetSelectedYear")
-			+'-'+$("#reportsMonthPicker").MonthPicker("GetSelectedMonth");
-	if(request===requests.monthCategoriesSums[selectedYearMonth])
-		plotReport(data);
-}
-
-function plotReport(categories) {
-	var numCategories=categories.length;
-	var seriesData=[];
-	for (var i=0; i<numCategories; ++i) {
-		var category=categories[i];
-		var dataItem={name: category.category,y: -parseFloat(category.amount)};
-		seriesData.push(dataItem);
 	}
+	plotReport(expenses,income)
+}
+
+function plotReport(expenses,income) {
+	var numCategories=expenses.length;
+	var seriesData=[];
+	for (var categoryName in expenses) {
+		if (expenses.hasOwnProperty(categoryName)) {
+			var category=expenses[categoryName];
+			var dataItem={name: category.name,y: -category.total};
+			seriesData.push(dataItem);
+		}
+	}
+	console.log(seriesData);
 	$('#piechartContainer').highcharts({
         chart: {
             type: 'pie'
@@ -326,28 +330,56 @@ function mainTabActivate(event,ui) {
 }
 
 function setupCategoriesPage() {
+	var categoryNames=["<Create New>","-"];
+	for (var i=0; i<categories.length; ++i) {
+		categoryNames.push(categories[i].name);
+	}
 	$("#categoriesGrid").jsGrid({
-        
         width: "100%",
         sorting: true,
 		data:categories,
         deleteConfirm: "Do you really want to delete the client?",
-		inserting: true,
+		//inserting: true,
         editing: true,
 		noDataContent:null,
         fields: [
-            { name:"id",title: "ID", type: "number",readOnly:true},
+            { name:"id",title: "ID", type: "number",readOnly:true,visible:false},
 			{ name:"name",title: "Namn", type: "text"},
-            { name: "parent", title:"Parent", type: "select",items:[]},
+            { name: "parent", title:"Parent", type: "chosen",options:categoryNames},
 			{
                 type: "control",
                 modeSwitchButton: false,
-                editButton: false
+                editButton: false,
+				deleteButton:false
             }
         ],
+		onItemUpdated:categoryEdited,
 		onItemInserted:categoryInserted,
 		onItemDeleted:categoryDeleted
     });
+}
+
+function categoryEdited(data) {
+	var item=data.item;
+	var prevItem=data.previousItem;
+	var changes=findChanges(item,prevItem);
+	if (changes) {
+		$.post("controller.php",
+		{func:"editCategory",refName:prevItem.name,name:item.name,parent:item.parent},null,"json");
+	}
+}
+
+function findChanges(a,b) {
+	var changed=false,changes={};
+	for (prop in a) {
+		if (a.hasOwnProperty(prop)) {
+			if (a[prop]!=b[prop]) {
+				changed=true;
+				changes[prop]=b[prop];
+			}
+		}
+	}
+	return changed?changes:false;
 }
 
 function categoryDeleted(event) {
@@ -386,7 +418,8 @@ function gotTransactions() {
 			delete transactions[i].accountId;
 		}
 	}
-	setupTransactionsGrid(transactions);
+	//setupTransactionsGrid(transactions);
+	$("#mainTabs").tabs("option","active",3);
 }
 
 function setupTransactionsGrid(transactionRows) {
@@ -1187,7 +1220,8 @@ function setupJsGridChosenField() {
 				option.text=this.options[i];
 				select.add(option);
 			}
-			select.value='-';
+			select.value=value?value:'-';
+				
 			setTimeout(chosenize);//wont be correctly "chosenized" before having been added to DOM
 			return select;
 			

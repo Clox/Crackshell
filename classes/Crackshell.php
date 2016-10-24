@@ -18,12 +18,18 @@ class Crackshell {
 		$transactions=$db->query(
 			"SELECT id,date,amount,specification,location,addedAt,categoryId,accountId FROM transactions"
 			)->fetchAll(PDO::FETCH_ASSOC);
+		foreach ($transactions as $transactionIndex=>$transaction) {
+			$transactions[$transactionIndex]['amount']=$transaction['amount']+0;
+		}
 		return $transactions;
 	}
 	
 	public function getCategories() {
 		global $db;
-		$categories=$db->query("SELECT id,name,parentId FROM categories")->fetchAll(PDO::FETCH_ASSOC);
+		$categories=$db->query(
+			"SELECT categories.id,categories.name,parents.name parent FROM categories".PHP_EOL
+			."LEFT JOIN categories parents ON categories.parentId=parents.id"
+			)->fetchAll(PDO::FETCH_ASSOC);
 		return $categories;
 	}
 	
@@ -181,5 +187,25 @@ class Crackshell {
 	public function deleteTransaction($transactionId) {
 		global $db;
 		return $db->exec("DELETE FROM transactions WHERE id=$transactionId");
+	}
+	
+	public function editCategory($refName,$name,$parent) {
+		global $db;
+		$prepSelect=$db->prepare("SELECT name,id FROM categories WHERE name IN (?,?)");
+		$prepSelect->execute([$refName,$parent]);
+		$categoryIds=$prepSelect->fetchAll(PDO::FETCH_KEY_PAIR);
+		$categoryId=$categoryIds[$refName];
+		if ($parent) {
+			if (isset($categoryIds[$parent])) {
+				$parentId=$categoryIds[$parent];
+			} else {
+				$parentId=$this->createCategory($parent);
+			}
+		} else {
+			$parentId='null';
+		}
+		$a="UPDATE categories SET name=?,parentId=$parentId WHERE id=$categoryId";
+		$prepUpdate=$db->prepare("UPDATE categories SET name=?,parentId=$parentId WHERE id=$categoryId");
+		$prepUpdate->execute([$name]);
 	}
 }

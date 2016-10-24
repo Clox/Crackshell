@@ -2,10 +2,11 @@
 require_once './settings.php';
 if (php_sapi_name() === 'cli') {
 	//$_GET=['func'=>'getInvestments','numHoldings'=>4,'factorSettings'=>'{"weightScoreDropRate":280}'];
-	$_POST=['func'=>'editTransaction','id'=>'8','changes'=>'{"category":"1","specification":"APOTEKET L RKAN1"}'];
+	//$_POST=['func'=>'editTransaction','id'=>'8','changes'=>'{"category":"1","specification":"APOTEKET L RKAN1"}'];
 	//$_POST=['func'=>'addNewTransactions'];
 	//$_GET=['func'=>'getTransactions','sinceTransactionId'=>453,'sinceCategoryId'=>0];
 	//$_GET=['func'=>'getMonthCategoriesSums','year'=>'2016','month'=>'10'];
+	$_POST=['func'=>'editCategory','refName'=>'Telia','name'=>'Teliaa','parent'=>null];
 } else {
 	set_time_limit(120);
 }
@@ -79,4 +80,12 @@ function controller_get_getMonthCategoriesSums($vars) {
 function controller_get_getAccounts() {
 	$accounts=(new Crackshell())->getAccounts();
 	echo json_encode($accounts);
+}
+
+function controller_post_editCategory($vars) {
+	$refName=$vars['refName'];
+	$name=$vars['name'];
+	$parent=$vars['parent'];
+	(new Crackshell())->editCategory($refName,$name,$parent);
+	echo "foo";
 }

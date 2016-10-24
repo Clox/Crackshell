@@ -82,8 +82,12 @@
 			<div id="categoriesGrid"></div>
 		</div>
 		<div id="mainTabs-4"><!--reports tab-->
-			<div id="reportsMonthPicker"></div>
-			<div id="piechartContainer" style="min-width: 310px; max-width: 1000px; height: 700px; margin: 0 auto"></div>
+			<div id="reportsSidebar">
+				<div id="reportsMonthPicker"></div>
+			</div>
+			<div id="reportPageBody">
+				<div id="piechartContainer" style="min-width: 310px; max-width: 1000px; height: 700px; margin: 0 auto"></div>
+			</div>
 		</div>
 	</div>
 </body>
