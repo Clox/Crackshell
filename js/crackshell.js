@@ -111,8 +111,10 @@ function importTransactionsContinueToCategorize() {
 			var colAssignment=colAssignments[colAssignmentIndex];
 			if (colAssignment) {
 				var value=transaction[colAssignmentIndex];
-				if (colAssignment=='date')
+				if (colAssignment==='date')
 					value=normalizeDateString(value);
+				else if(colAssignment==='amount')
+					value=normalizeNumberString(value);
 				transaction[colAssignment]=value;
 			}
 			delete transaction[colAssignmentIndex];
@@ -568,8 +570,11 @@ function normalizeDateString(string) {
 	return false;
 }
 
-function matchesAmountField(string) {
-	return !!string.match(/\d+[,.]\d\d/);
+function normalizeNumberString(string) {
+	string=string.replace(/ |,/g,function(match) {return (match===" ")?"":".";})
+	if (string.match(/\d+[.]\d\d/))
+		return string;
+	return false;
 }
 
 function rowStringToCells(rowString) {
@@ -592,7 +597,7 @@ function guessColumns(rows) {
 					colGuesses[dateCol]=null;
 				colGuesses[x]="date";
 				dateCol=x;
-			} else if (matchesAmountField(cell)){
+			} else if (normalizeNumberString(cell)){
 				if (amountCol===undefined) {
 					amountCol=x;
 					colGuesses[x]='amount';
