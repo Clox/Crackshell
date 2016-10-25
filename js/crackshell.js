@@ -23,6 +23,9 @@ var activeImportTranactionsPage;
 var colAssignments;//Used when assigning columns in imported data to transaction-fields
 $(init);
 
+var monthNameFromNumber=['','Januari','Februari','Mars','April','Maj'
+	,'Juni','Juli','Augusti','September','Oktober','November','December'];
+
 function init() {
 	setupJsGridCustomFields();
 	setupMainTabs();
@@ -147,51 +150,65 @@ function getMonthCategoriesSums(year,month) {
 	var numTransactions=transactions.length;
 	var expenses={};
 	var income={};
+	var entriesToProcess=[];
 	for (var i=0; i<numTransactions; ++i) {
 		var transaction=transactions[i];
 		var date=transaction.date.split('-');
 		if (date[0]==year&&date[1]==month) {
-			var categories=transaction.amount>0?income:expenses;
-			var category=categories[transaction.category];
-			if (!category) {
-				category=categories[transaction.category]={total:0,transactions:[],name:transaction.category};
-			}
-			category.total+=transaction.amount;
-			category.transactions.push(transaction);
+			entriesToProcess.push({name:'transaction'+i,parent:transaction.category,sum:transaction.amount});
 		}
 	}
-	plotReport(expenses,income)
+	while (entriesToProcess.length) {
+		for (var i=entriesToProcess.length-1; i>=0; --i) {
+			var entry=entriesToProcess[i];
+			delete expenses[entry.name];
+			var parentName=entry.parent;
+			var parentEntry=expenses[parentName];
+			if (!parentEntry) {
+				if (parentName)
+					parentEntry=categoriesByName[parentName];
+				else
+					parentEntry={};
+				expenses[parentName]=parentEntry;
+				parentEntry.sum=0;
+				parentEntry.children=[];
+				if (parentEntry.parent) {
+					entriesToProcess.push(parentEntry);
+				}
+			}
+			parentEntry.sum+=entry.sum;
+			parentEntry.children.push(entry);
+			entriesToProcess.splice(i,1);
+		}
+	}
+	highChartPlotReport(expenses,income,year,month);
 }
 
-function plotReport(expenses,income) {
-	var numCategories=expenses.length;
+function highChartPlotReport(expenses,income,year,month) {
 	var seriesData=[];
-	for (var categoryName in expenses) {
-		if (expenses.hasOwnProperty(categoryName)) {
-			var category=expenses[categoryName];
-			var dataItem={name: category.name,y: -category.total};
+	for (var entryName in expenses) {
+		if (expenses.hasOwnProperty(entryName)) {
+			var entry=expenses[entryName];
+			var dataItem={name: entry.name,y: -entry.sum};
 			seriesData.push(dataItem);
 		}
 	}
-	console.log(seriesData);
 	$('#piechartContainer').highcharts({
         chart: {
             type: 'pie'
         },
         title: {
-            text: ''
+            text: 'Expenses'
         },
         subtitle: {
-            text: ''
+            text: monthNameFromNumber[month]+' '+year
         },
         plotOptions: {
             series: {
                 dataLabels: {
                     enabled: true,
-                    //format: '{point.name}: {point.y:.1f}',
-					formatter:function(){
-						return this.key+": "+this.y.toFixed(2)+":-<br>"+this.percentage.toFixed(2)+"%";
-					}
+                    format: '{point.name}: {point.y:.2f}:-',
+					//formatter:function(){return this.key+": "+this.y.toFixed(2)+":-";}
                 }
             },
         },
@@ -199,7 +216,11 @@ function plotReport(expenses,income) {
         tooltip: {
             headerFormat: '<span style="font-size:11px">{series.name}</span><br>',
             pointFormat: '<span style="color:{point.color}">{point.name}</span>: <b>{point.y:.2f}</b><br/>',
-			formatter:function(){return "kjjkjk"}
+			format: '{point.name}: {point.y:.2f}:-',
+			formatter:function(highChart){
+				return '<span style="color:'+this.color+'">'+this.key+'</span>: <b>'+this.y.toFixed(2)+':-</b>'
+				+'<br><b>'+this.percentage.toFixed(2)+'%</b>';
+			}
         },
         series: [{
             name: 'Categories',
@@ -330,7 +351,7 @@ function mainTabActivate(event,ui) {
 }
 
 function setupCategoriesPage() {
-	var categoryNames=["<Create New>","-"];
+	categoryNames=["<Create New>","-"];
 	for (var i=0; i<categories.length; ++i) {
 		categoryNames.push(categories[i].name);
 	}
@@ -339,7 +360,7 @@ function setupCategoriesPage() {
         sorting: true,
 		data:categories,
         deleteConfirm: "Do you really want to delete the client?",
-		//inserting: true,
+		inserting: true,
         editing: true,
 		noDataContent:null,
         fields: [
@@ -364,6 +385,9 @@ function categoryEdited(data) {
 	var prevItem=data.previousItem;
 	var changes=findChanges(item,prevItem);
 	if (changes) {
+		if (item.parent&&!categoriesByName[item.parent]) {
+			categoryCreatedLocal({name:item.parent});
+		} 
 		$.post("controller.php",
 		{func:"editCategory",refName:prevItem.name,name:item.name,parent:item.parent},null,"json");
 	}
@@ -387,11 +411,19 @@ function categoryDeleted(event) {
 	var promise=$.post("controller.php", {func:"deleteCategory",id:categoryId},null,"json");
 }
 
+function categoryCreatedLocal(item) {
+	categoriesByName[item.name]=item;
+	categoryNames.push(item.name);
+	console.log("createdlocalcategory");
+	$("#categoriesGrid").jsGrid('fieldOption','parent', 'options', categoryNames);
+}
+
 function categoryInserted(event) {
 	var name=event.item.name;
 	var promise=$.post("controller.php", {func:"createCategory",name:name},categoryCreated,"json");
 	promise.customData={item:event.item};
 	promise.done=setupTransactionsGrid;
+	categoryCreatedLocal({name:event.item.parent});
 	
 	function categoryCreated(data,message,promise) {
 		$("#categoriesGrid").jsGrid("updateItem", promise.customData.item,{ id: data.id});
