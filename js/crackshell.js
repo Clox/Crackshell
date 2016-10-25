@@ -150,12 +150,14 @@ function getMonthCategoriesSums(year,month) {
 	var numTransactions=transactions.length;
 	var expenses={};
 	var income={};
+	var expensesSum=0;
 	var entriesToProcess=[];
 	for (var i=0; i<numTransactions; ++i) {
 		var transaction=transactions[i];
 		var date=transaction.date.split('-');
-		if (date[0]==year&&date[1]==month) {
+		if (date[0]==year&&date[1]==month&&transaction.amount<0) {
 			entriesToProcess.push({name:'transaction'+i,parent:transaction.category,sum:transaction.amount});
+			expensesSum+=transaction.amount;
 		}
 	}
 	while (entriesToProcess.length) {
@@ -181,27 +183,54 @@ function getMonthCategoriesSums(year,month) {
 			entriesToProcess.splice(i,1);
 		}
 	}
-	highChartPlotReport(expenses,income,year,month);
+	highChartPlotReport(expenses,expensesSum,income,year,month);
 }
 
-function highChartPlotReport(expenses,income,year,month) {
+function highChartGenerateDataPoints(entries) {
 	var seriesData=[];
-	for (var entryName in expenses) {
-		if (expenses.hasOwnProperty(entryName)) {
-			var entry=expenses[entryName];
-			var dataItem={name: entry.name,y: -entry.sum};
-			seriesData.push(dataItem);
+	var drilldown={series:[]};
+	for (var entryKey in entries) {
+		if (entries.hasOwnProperty(entryKey)) {
+			var entry=entries[entryKey];
+			var seriesDataItem={name: entry.name,y: -entry.sum};
+			if (entry.children) {
+				seriesDataItem.drilldown=entry.name;
+				drilldown.series.push(highChartGenerateSubDataPoints(entry.children,entry.name));
+			}
+			seriesData.push(seriesDataItem);
 		}
 	}
-	$('#piechartContainer').highcharts({
+  return {series:[{data:seriesData,colorByPoint:true,name:'Categories'}],drilldown:drilldown};
+}
+
+function highChartGenerateSubDataPoints(entries,parentId) {
+	var singleSeries={id:parentId,data:[]};
+	for (var entryKey in entries) {
+		if (entries.hasOwnProperty(entryKey)) {
+			var entry=entries[entryKey];
+			var seriesDataItem={name: entry.name,y: -entry.sum};
+			singleSeries.data.push(seriesDataItem);
+		}
+	}
+  return singleSeries;
+}
+
+function highChartPlotReport(expenses,expensesSum,income,year,month) {
+	//1 item
+	//expenses=JSON.parse('{"Apotek":{"id":"277","name":"Apotek","parent":null,"sum":-459.96,"children":[{"id":"90","name":"Apoteket Lärkan","parent":"Apotek","sum":-459.96,"children":[{"name":"transaction1561","parent":"Apoteket Lärkan","sum":-49.96},{"name":"transaction269","parent":"Apoteket Lärkan","sum":-207},{"name":"transaction245","parent":"Apoteket Lärkan","sum":-134},{"name":"transaction244","parent":"Apoteket Lärkan","sum":-69}]}]}}');
+	//2 items
+	//expenses=JSON.parse('{"Apotek":{"id":"277","name":"Apotek","parent":null,"sum":-459.96,"children":[{"id":"90","name":"Apoteket Lärkan","parent":"Apotek","sum":-459.96,"children":[{"name":"transaction1561","parent":"Apoteket Lärkan","sum":-49.96},{"name":"transaction269","parent":"Apoteket Lärkan","sum":-207},{"name":"transaction245","parent":"Apoteket Lärkan","sum":-134},{"name":"transaction244","parent":"Apoteket Lärkan","sum":-69}]}]},"Frakt":{"id":"287","name":"Frakt","parent":null,"sum":-364,"children":[{"id":"142","name":"Posten.se","parent":"Frakt","sum":-53,"children":[{"name":"transaction230","parent":"Posten.se","sum":-53}]},{"id":"141","name":"Schenker AB","parent":"Frakt","sum":-311,"children":[{"name":"transaction261","parent":"Schenker AB","sum":-59},{"name":"transaction260","parent":"Schenker AB","sum":-59},{"name":"transaction253","parent":"Schenker AB","sum":-59},{"name":"transaction252","parent":"Schenker AB","sum":-75},{"name":"transaction229","parent":"Schenker AB","sum":-59}]}]}}');
+	e=expenses;
+	console.log((highChartGenerateDataPoints(expenses)));
+	var highChartData=$.extend(highChartGenerateDataPoints(expenses),{
         chart: {
             type: 'pie'
         },
         title: {
-            text: 'Expenses'
+            text: 'Expenses - '+monthNameFromNumber[month]+' '+year
         },
         subtitle: {
-            text: monthNameFromNumber[month]+' '+year
+            text: 'Total: '+-expensesSum.toFixed(2)+':-'
         },
         plotOptions: {
             series: {
@@ -221,80 +250,10 @@ function highChartPlotReport(expenses,income,year,month) {
 				return '<span style="color:'+this.color+'">'+this.key+'</span>: <b>'+this.y.toFixed(2)+':-</b>'
 				+'<br><b>'+this.percentage.toFixed(2)+'%</b>';
 			}
-        },
-        series: [{
-            name: 'Categories',
-            colorByPoint: true,
-            data: seriesData,
-        }],
-        drilldown: {
-            series: [{
-                name: 'Microsoft Internet Explorer',
-                id: 'Microsoft Internet Explorer',
-                data: [
-                    ['v11.0', 24.13],
-                    ['v8.0', 17.2],
-                    ['v9.0', 8.11],
-                    ['v10.0', 5.33],
-                    ['v6.0', 1.06],
-                    ['v7.0', 0.5]
-                ]
-            }, {
-                name: 'Chrome',
-                id: 'Chrome',
-                data: [
-                    ['v40.0', 5],
-                    ['v41.0', 4.32],
-                    ['v42.0', 3.68],
-                    ['v39.0', 2.96],
-                    ['v36.0', 2.53],
-                    ['v43.0', 1.45],
-                    ['v31.0', 1.24],
-                    ['v35.0', 0.85],
-                    ['v38.0', 0.6],
-                    ['v32.0', 0.55],
-                    ['v37.0', 0.38],
-                    ['v33.0', 0.19],
-                    ['v34.0', 0.14],
-                    ['v30.0', 0.14]
-                ]
-            }, {
-                name: 'Firefox',
-                id: 'Firefox',
-                data: [
-                    ['v35', 2.76],
-                    ['v36', 2.32],
-                    ['v37', 2.31],
-                    ['v34', 1.27],
-                    ['v38', 1.02],
-                    ['v31', 0.33],
-                    ['v33', 0.22],
-                    ['v32', 0.15]
-                ]
-            }, {
-                name: 'Safari',
-                id: 'Safari',
-                data: [
-                    ['v8.0', 2.56],
-                    ['v7.1', 0.77],
-                    ['v5.1', 0.42],
-                    ['v5.0', 0.3],
-                    ['v6.1', 0.29],
-                    ['v7.0', 0.26],
-                    ['v6.2', 0.17]
-                ]
-            }, {
-                name: 'Opera',
-                id: 'Opera',
-                data: [
-                    ['v12.x', 0.34],
-                    ['v28', 0.24],
-                    ['v27', 0.17],
-                    ['v29', 0.16]
-                ]
-            }]
         }
-    });//.css("margin","-200 auto");
+    });
+	console.log(highChartData);
+	$('#piechartContainer').highcharts(highChartData);
 }
 
 function assignDataTo(object,property) {
