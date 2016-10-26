@@ -156,7 +156,7 @@ function getMonthCategoriesSums(year,month) {
 		var transaction=transactions[i];
 		var date=transaction.date.split('-');
 		if (date[0]==year&&date[1]==month&&transaction.amount<0) {
-			entriesToProcess.push({name:'transaction'+i,parent:transaction.category,sum:transaction.amount});
+			entriesToProcess.push({name:transaction.specification,parent:transaction.category,sum:transaction.amount});
 			expensesSum+=transaction.amount;
 		}
 	}
@@ -357,7 +357,6 @@ function categoryDeleted(event) {
 function categoryCreatedLocal(item) {
 	categoriesByName[item.name]=item;
 	categoryNames.push(item.name);
-	console.log("createdlocalcategory");
 	$("#categoriesGrid").jsGrid('fieldOption','parent', 'options', categoryNames);
 }
 
