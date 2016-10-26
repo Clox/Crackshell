@@ -186,43 +186,29 @@ function getMonthCategoriesSums(year,month) {
 	highChartPlotReport(expenses,expensesSum,income,year,month);
 }
 
-function highChartGenerateDataPoints(entries) {
-	var seriesData=[];
-	var drilldown={series:[]};
+function highchartGenerateData(entries,seriesData,drilldownSeries) {
 	for (var entryKey in entries) {
 		if (entries.hasOwnProperty(entryKey)) {
 			var entry=entries[entryKey];
 			var seriesDataItem={name: entry.name,y: -entry.sum};
 			if (entry.children) {
 				seriesDataItem.drilldown=entry.name;
-				drilldown.series.push(highChartGenerateSubDataPoints(entry.children,entry.name));
+				var newDrilldown={data:[],id:entry.name};
+				drilldownSeries.push(newDrilldown);
+				highchartGenerateData(entry.children,newDrilldown.data,drilldownSeries);
 			}
 			seriesData.push(seriesDataItem);
 		}
 	}
-  return {series:[{data:seriesData,colorByPoint:true,name:'Categories'}],drilldown:drilldown};
-}
-
-function highChartGenerateSubDataPoints(entries,parentId) {
-	var singleSeries={id:parentId,data:[]};
-	for (var entryKey in entries) {
-		if (entries.hasOwnProperty(entryKey)) {
-			var entry=entries[entryKey];
-			var seriesDataItem={name: entry.name,y: -entry.sum};
-			singleSeries.data.push(seriesDataItem);
-		}
-	}
-  return singleSeries;
 }
 
 function highChartPlotReport(expenses,expensesSum,income,year,month) {
-	//1 item
-	//expenses=JSON.parse('{"Apotek":{"id":"277","name":"Apotek","parent":null,"sum":-459.96,"children":[{"id":"90","name":"Apoteket Lärkan","parent":"Apotek","sum":-459.96,"children":[{"name":"transaction1561","parent":"Apoteket Lärkan","sum":-49.96},{"name":"transaction269","parent":"Apoteket Lärkan","sum":-207},{"name":"transaction245","parent":"Apoteket Lärkan","sum":-134},{"name":"transaction244","parent":"Apoteket Lärkan","sum":-69}]}]}}');
-	//2 items
-	//expenses=JSON.parse('{"Apotek":{"id":"277","name":"Apotek","parent":null,"sum":-459.96,"children":[{"id":"90","name":"Apoteket Lärkan","parent":"Apotek","sum":-459.96,"children":[{"name":"transaction1561","parent":"Apoteket Lärkan","sum":-49.96},{"name":"transaction269","parent":"Apoteket Lärkan","sum":-207},{"name":"transaction245","parent":"Apoteket Lärkan","sum":-134},{"name":"transaction244","parent":"Apoteket Lärkan","sum":-69}]}]},"Frakt":{"id":"287","name":"Frakt","parent":null,"sum":-364,"children":[{"id":"142","name":"Posten.se","parent":"Frakt","sum":-53,"children":[{"name":"transaction230","parent":"Posten.se","sum":-53}]},{"id":"141","name":"Schenker AB","parent":"Frakt","sum":-311,"children":[{"name":"transaction261","parent":"Schenker AB","sum":-59},{"name":"transaction260","parent":"Schenker AB","sum":-59},{"name":"transaction253","parent":"Schenker AB","sum":-59},{"name":"transaction252","parent":"Schenker AB","sum":-75},{"name":"transaction229","parent":"Schenker AB","sum":-59}]}]}}');
-	e=expenses;
-	console.log((highChartGenerateDataPoints(expenses)));
-	var highChartData=$.extend(highChartGenerateDataPoints(expenses),{
+	var series=[{data:[], name: 'Things',colorByPoint: true}];
+	var drilldown={series:[]};
+	highchartGenerateData(expenses,series[0].data,drilldown.series);
+	var highChartData={
+		series:series,
+		drilldown:drilldown,
         chart: {
             type: 'pie'
         },
@@ -241,7 +227,6 @@ function highChartPlotReport(expenses,expensesSum,income,year,month) {
                 }
             },
         },
-
         tooltip: {
             headerFormat: '<span style="font-size:11px">{series.name}</span><br>',
             pointFormat: '<span style="color:{point.color}">{point.name}</span>: <b>{point.y:.2f}</b><br/>',
@@ -251,8 +236,7 @@ function highChartPlotReport(expenses,expensesSum,income,year,month) {
 				+'<br><b>'+this.percentage.toFixed(2)+'%</b>';
 			}
         }
-    });
-	console.log(highChartData);
+    };
 	$('#piechartContainer').highcharts(highChartData);
 }
 
