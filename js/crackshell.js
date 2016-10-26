@@ -170,7 +170,7 @@ function getMonthCategoriesSums(year,month) {
 				if (parentName)
 					parentEntry=categoriesByName[parentName];
 				else
-					parentEntry={};
+					parentEntry={name:"Uncategorized"};
 				expenses[parentName]=parentEntry;
 				parentEntry.sum=0;
 				parentEntry.children=[];
